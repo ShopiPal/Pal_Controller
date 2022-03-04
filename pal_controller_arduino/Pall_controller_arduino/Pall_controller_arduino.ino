@@ -4,8 +4,8 @@
 #include <ros/time.h>
 #include <sensor_msgs/Range.h>
  
-#define SONAR_NUM 3          //The number of sensors. 
-#define MAX_DISTANCE 200     //Mad distance to detect obstacles.
+#define SONAR_NUM 3          //The number of sensors. // update to 6 
+#define MAX_DISTANCE 200     //Max distance to detect obstacles.
 #define PING_INTERVAL 33     //Looping the pings after 33 microseconds.
  
 unsigned long pingTimer[SONAR_NUM]; // Holds the times when the next ping should happen for each sensor.
@@ -28,9 +28,12 @@ uint8_t rightSensorKalman;
  
  
 NewPing sonar[SONAR_NUM] = {
-  NewPing(3, 2, MAX_DISTANCE), // Trigger pin, echo pin, and max distance to ping.
-  NewPing(5, 4, MAX_DISTANCE),
-  NewPing(7, 6, MAX_DISTANCE)
+  NewPing(3, 2, MAX_DISTANCE), // Trigger pin, echo pin, and max distance to ping. // front
+  NewPing(5, 4, MAX_DISTANCE), // back
+  NewPing(7, 6, MAX_DISTANCE) // right
+  // NewPing(7, 6, MAX_DISTANCE) // left 
+  // NewPing(7, 6, MAX_DISTANCE) // front_right
+  // NewPing(7, 6, MAX_DISTANCE) // front _ left
 };
  
 /*
@@ -136,10 +139,14 @@ void loop() {
     sensorCycle();
     oneSensorCycle();
     applyKF();
-    range_left.range   = leftSensorKalman;
+    range_left.range   = leftSensorKalman; 
     range_center.range = centerSensorKalman;
-    range_right.range  = centerSensorKalman;
- 
+    range_right.range  = rightSensorKalman;
+    // without the filter
+    //range_left.range   = leftSensor; 
+    //range_center.range = centerSensor;
+    //range_right.range  = rightSensor;
+    
     range_left.header.stamp = nh.now();
     range_center.header.stamp = nh.now();
     range_right.header.stamp = nh.now();
