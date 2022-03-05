@@ -5,7 +5,7 @@
 #include <sensor_msgs/Range.h>
  
 #define SONAR_NUM 6          //The number of sensors. // update to 6 
-#define MAX_DISTANCE 200     //Max distance to detect obstacles.
+#define MAX_DISTANCE 300     //Max distance to detect obstacles.
 #define PING_INTERVAL 33     //Looping the pings after 33 microseconds.
  
 unsigned long pingTimer[SONAR_NUM]; // Holds the times when the next ping should happen for each sensor.
@@ -14,10 +14,10 @@ uint8_t currentSensor = 0;          // Keeps track of which sensor is active.
  
 unsigned long _timerStart = 0;
  
-int LOOPING = 40; //Loop for every 40 milliseconds.
+int LOOPING = 40 ; //Loop for every 80 milliseconds.
  
 uint8_t oldSensorReading[3];    //Store last valid value of the sensors.
- 
+
 uint8_t frontSensor;             //Store raw sensor's value.
 uint8_t backSensor;
 uint8_t rightSensor;
@@ -48,12 +48,12 @@ NewPing sonar[SONAR_NUM] = {
    e_est: Estimation Uncertainty
    q: Process Noise
 */
-SimpleKalmanFilter KF_front(2, 2, 0.01);
-SimpleKalmanFilter KF_back(2, 2, 0.01);
-SimpleKalmanFilter KF_right(2, 2, 0.01);
-SimpleKalmanFilter KF_left(2, 2, 0.01);
-SimpleKalmanFilter KF_front_right(2, 2, 0.01);
-SimpleKalmanFilter KF_front_left(2, 2, 0.01);
+SimpleKalmanFilter KF_front(1, 1, 0.01);
+SimpleKalmanFilter KF_back(1, 1, 0.01);
+SimpleKalmanFilter KF_right(1, 1, 0.01);
+SimpleKalmanFilter KF_left(1, 1, 0.01);
+SimpleKalmanFilter KF_front_right(1, 1, 0.01);
+SimpleKalmanFilter KF_front_left(1, 1, 0.01);
 
 
 ros::NodeHandle nh; //create an object which represents the ROS node.
@@ -83,9 +83,9 @@ void oneSensorCycle() {
   frontSensor       = returnLastValidRead(0, cm[0]);
   backSensor        = returnLastValidRead(1, cm[1]);
   rightSensor       = returnLastValidRead(2, cm[2]);
-  leftSensor        = returnLastValidRead(3, cm[2]);
-  front_rightSensor = returnLastValidRead(4, cm[2]);
-  front_leftSensor  = returnLastValidRead(5, cm[2]);
+  leftSensor        = returnLastValidRead(3, cm[3]);
+  front_rightSensor = returnLastValidRead(4, cm[4]);
+  front_leftSensor  = returnLastValidRead(5, cm[5]);
   
 }
  
@@ -175,12 +175,12 @@ void loop() {
     range_front_left.range  = front_leftSensorKalman;
     
     // without the filter
-   // range_front.range   = frontSensor; 
-   // range_back.range = backSensor;
-   // range_right.range  = rightSensor;
-   // range_left.range  = leftSensor;
-   // range_front_right.range  = front_rightSensor;
-   // range_front_left.range  = front_leftSensor;
+    //range_front.range   = frontSensor; 
+    //range_back.range = backSensor;
+    //range_right.range  = rightSensor;
+    //range_left.range  = leftSensor;
+    //range_front_right.range  = front_rightSensor;
+    //range_front_left.range  = front_leftSensor;
     
     
     
@@ -200,5 +200,5 @@ void loop() {
  
     startTimer();
   }
-  nh.spinOnce();//Handle ROS events
+    nh.spinOnce();//Handle ROS events
 }
