@@ -5,7 +5,7 @@
 #include <sensor_msgs/Range.h>
  
 #define SONAR_NUM 3          //The number of sensors. // update to 6 
-#define MAX_DISTANCE 200     //Max distance to detect obstacles.
+#define MAX_DISTANCE 300     //Max distance to detect obstacles.
 #define PING_INTERVAL 33     //Looping the pings after 33 microseconds.
  
 unsigned long pingTimer[SONAR_NUM]; // Holds the times when the next ping should happen for each sensor.
@@ -28,9 +28,9 @@ uint8_t rightSensorKalman;
  
  
 NewPing sonar[SONAR_NUM] = {
-  NewPing(3, 2, MAX_DISTANCE), // Trigger pin, echo pin, and max distance to ping. // front
-  NewPing(5, 4, MAX_DISTANCE), // back
-  NewPing(7, 6, MAX_DISTANCE) // right
+  NewPing(48, 49, MAX_DISTANCE), // Trigger pin, echo pin, and max distance to ping. // front
+  NewPing(46, 47, MAX_DISTANCE), // back
+  NewPing(44, 45, MAX_DISTANCE) // right
   // NewPing(7, 6, MAX_DISTANCE) // left 
   // NewPing(7, 6, MAX_DISTANCE) // front_right
   // NewPing(7, 6, MAX_DISTANCE) // front _ left
@@ -43,9 +43,9 @@ NewPing sonar[SONAR_NUM] = {
    e_est: Estimation Uncertainty
    q: Process Noise
 */
-SimpleKalmanFilter KF_Left(2, 2, 0.01);
-SimpleKalmanFilter KF_Center(2, 2, 0.01);
-SimpleKalmanFilter KF_Right(2, 2, 0.01);
+SimpleKalmanFilter KF_Left(1, 1, 0.01);
+SimpleKalmanFilter KF_Center(1, 1, 0.01);
+SimpleKalmanFilter KF_Right(1, 1, 0.01);
  
 ros::NodeHandle nh; //create an object which represents the ROS node.
  
