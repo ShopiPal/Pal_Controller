@@ -152,7 +152,7 @@ void setup() {
   nh.advertise(pub_range_right);
   nh.advertise(pub_range_left);
   nh.advertise(pub_range_front_right);
-  nh.advertise(pub_front_range_left);
+  nh.advertise(pub_range_front_left);
  
   sensor_msg_init(range_front,"/sonar_front");
   sensor_msg_init(range_back, "/sonar_back");
@@ -196,7 +196,7 @@ void loop() {
     pub_range_right.publish(&range_right);
     pub_range_left.publish(&range_left);
     pub_range_front_right.publish(&range_front_right);
-    pub_front_range_left.publish(&range_front_left);
+    pub_range_front_left.publish(&range_front_left);
  
     startTimer();
   }
