@@ -5,7 +5,7 @@
 #include <sensor_msgs/Range.h>
  
 #define SONAR_NUM 6          //The number of sensors. // update to 6 
-#define MAX_DISTANCE 300     //Max distance to detect obstacles.
+#define MAX_DISTANCE 250     //Max distance to detect obstacles.
 #define PING_INTERVAL 33     //Looping the pings after 33 microseconds.
  
 unsigned long pingTimer[SONAR_NUM]; // Holds the times when the next ping should happen for each sensor.
@@ -16,7 +16,7 @@ unsigned long _timerStart = 0;
  
 int LOOPING = 40 ; //Loop for every 80 milliseconds.
  
-uint8_t oldSensorReading[3];    //Store last valid value of the sensors.
+uint8_t oldSensorReading[SONAR_NUM];    //Store last valid value of the sensors.
 
 uint8_t frontSensor;             //Store raw sensor's value.
 uint8_t backSensor;
@@ -163,7 +163,7 @@ void setup() {
 }
  
 void loop() {
-  if (isTimeForLoop(LOOPING)) {
+ // if (isTimeForLoop(LOOPING)) {
     sensorCycle();
     oneSensorCycle();
     applyKF(); //with filtering
@@ -198,7 +198,7 @@ void loop() {
     pub_range_front_right.publish(&range_front_right);
     pub_range_front_left.publish(&range_front_left);
  
-    startTimer();
-  }
+   // startTimer();
+  //}
     nh.spinOnce();//Handle ROS events
 }
