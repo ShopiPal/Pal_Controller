@@ -3,7 +3,7 @@
 #include <ros.h>
 #include <ros/time.h>
 #include <sensor_msgs/Range.h>
- 
+ //merge test
 #define SONAR_NUM 3          //The number of sensors. // update to 6 
 #define MAX_DISTANCE 300     //Max distance to detect obstacles.
 #define PING_INTERVAL 33     //Looping the pings after 33 microseconds.
