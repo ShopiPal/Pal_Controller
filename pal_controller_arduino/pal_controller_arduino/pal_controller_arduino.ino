@@ -1,161 +1,219 @@
-#include <NewPing.h>
-#include <SimpleKalmanFilter.h>
-#include <ros.h>
-#include <ros/time.h>
-#include <sensor_msgs/Range.h>
- 
-#define SONAR_NUM 3          //The number of sensors. // update to 6 
-#define MAX_DISTANCE 300     //Max distance to detect obstacles.
-#define PING_INTERVAL 33     //Looping the pings after 33 microseconds.
- 
-unsigned long pingTimer[SONAR_NUM]; // Holds the times when the next ping should happen for each sensor.
-unsigned int cm[SONAR_NUM];         // Where the ping distances are stored.
-uint8_t currentSensor = 0;          // Keeps track of which sensor is active.
- 
-unsigned long _timerStart = 0;
- 
-int LOOPING = 40; //Loop for every 40 milliseconds.
- 
-uint8_t oldSensorReading[3];    //Store last valid value of the sensors.
- 
-uint8_t leftSensor;             //Store raw sensor's value.
-uint8_t centerSensor;
-uint8_t rightSensor;
- 
-uint8_t leftSensorKalman;       //Store filtered sensor's value.
-uint8_t centerSensorKalman;
-uint8_t rightSensorKalman;
- 
- 
-NewPing sonar[SONAR_NUM] = {
-  NewPing(48, 49, MAX_DISTANCE), // Trigger pin, echo pin, and max distance to ping. // front
-  NewPing(46, 47, MAX_DISTANCE), // back
-  NewPing(44, 45, MAX_DISTANCE) // right
-  // NewPing(7, 6, MAX_DISTANCE) // left 
-  // NewPing(7, 6, MAX_DISTANCE) // front_right
-  // NewPing(7, 6, MAX_DISTANCE) // front _ left
-};
- 
 /*
-  create Kalman filter objects for the sensors.
-   SimpleKalmanFilter(e_mea, e_est, q);
-   e_mea: Measurement Uncertainty
-   e_est: Estimation Uncertainty
-   q: Process Noise
-*/
-SimpleKalmanFilter KF_Left(1, 1, 0.01);
-SimpleKalmanFilter KF_Center(1, 1, 0.01);
-SimpleKalmanFilter KF_Right(1, 1, 0.01);
  
-ros::NodeHandle nh; //create an object which represents the ROS node.
+ * Author: Automatic Addison
+ * Website: https://automaticaddison.com
+ * Description: ROS node that publishes the accumulated ticks for each wheel
+ * (/right_ticks and /left_ticks topics) at regular intervals using the 
+ * built-in encoder (forward = positive; reverse = negative). 
+ * The node also subscribes to linear & angular velocity commands published on 
+ * the /cmd_vel topic to drive the robot accordingly.
+ * Reference: Practical Robotics in C++ book (ISBN-10 : 9389423465)
+ */
  
-//looping the sensors
-void sensorCycle() {
-  for (uint8_t i = 0; i < SONAR_NUM; i++) {
-    if (millis() >= pingTimer[i]) {
-      pingTimer[i] += PING_INTERVAL * SONAR_NUM;
-      if (i == 0 && currentSensor == SONAR_NUM - 1) oneSensorCycle();
-      sonar[currentSensor].timer_stop();
-      currentSensor = i;
-      cm[currentSensor] = 0;
-      sonar[currentSensor].ping_timer(echoCheck);
+#include <ros.h>
+#include <std_msgs/Int16.h>
+#include <geometry_msgs/Twist.h>
+ 
+// Handles startup and shutdown of ROS
+ros::NodeHandle nh;
+ 
+////////////////// Tick Data Publishing Variables and Constants ///////////////
+ 
+// Encoder output to Arduino Interrupt pin. Tracks the tick count.
+#define ENC_IN_LEFT_A 18
+//#define ENC_IN_RIGHT_A 3
+ 
+// Other encoder output to Arduino to keep track of wheel direction
+// Tracks the direction of rotation.
+#define ENC_IN_LEFT_B 19
+//#define ENC_IN_RIGHT_B 11
+ 
+// True = Forward; False = Reverse
+boolean Direction_left = true;
+//boolean Direction_right = true;
+ 
+// Minumum and maximum values for 16-bit integers
+// Range of 65,535
+const int encoder_minimum = -32768;
+const int encoder_maximum = 32767;
+ 
+// Keep track of the number of wheel ticks
+//std_msgs::Int16 right_wheel_tick_count;
+//ros::Publisher rightPub("right_ticks", &right_wheel_tick_count);
+ 
+std_msgs::Int16 left_wheel_tick_count;
+ros::Publisher leftPub("encoder_left_ticks", &left_wheel_tick_count);
+ros::Subscriber<std_msgs::Int16> leftPwm("left_motor_pwm" , &left_motor_pwm_req);
+ 
+// Time interval for measurements in milliseconds
+const int interval = 100;
+long previousMillis = 0;
+long currentMillis = 0;
+ 
+////////////////// Motor Controller Variables and Constants ///////////////////
+int pwmLeftReq = 0;
+ 
+// Motor A connections -------------- TO DO --------------
+const int enA = 9;
+const int in1 = 5;
+const int in2 = 6;
+  
+// Motor B connections
+//const int enB = 10; 
+//const int in3 = 7;
+//const int in4 = 8;
+ 
+// Record the time that the last velocity command was received
+double lastPwmReceived = 0;
+ 
+/////////////////////// Tick Data Publishing Functions ////////////////////////
+ 
+// Increment the number of ticks
+//void right_wheel_tick() {
+//   
+//  // Read the value for the encoder for the right wheel
+//  int val = digitalRead(ENC_IN_RIGHT_B);
+// 
+//  if (val == LOW) {
+//    Direction_right = false; // Reverse
+//  }
+//  else {
+//    Direction_right = true; // Forward
+//  }
+//   
+//  if (Direction_right) {
+//     
+//    if (right_wheel_tick_count.data == encoder_maximum) {
+//      right_wheel_tick_count.data = encoder_minimum;
+//    }
+//    else {
+//      right_wheel_tick_count.data++;  
+//    }    
+//  }
+//  else {
+//    if (right_wheel_tick_count.data == encoder_minimum) {
+//      right_wheel_tick_count.data = encoder_maximum;
+//    }
+//    else {
+//      right_wheel_tick_count.data--;  
+//    }   
+//  }
+//}
+ 
+// Increment the number of ticks
+void left_wheel_tick() {
+   
+  // Read the value for the encoder for the left wheel
+  int val = digitalRead(ENC_IN_LEFT_B);
+ 
+  if (val == LOW) {
+    Direction_left = true; // Reverse
+  }
+  else {
+    Direction_left = false; // Forward
+  }
+   
+  if (Direction_left) {
+    if (left_wheel_tick_count.data == encoder_maximum) {
+      left_wheel_tick_count.data = encoder_minimum;
     }
+    else {
+      left_wheel_tick_count.data++;  
+    }  
+  }
+  else {
+    if (left_wheel_tick_count.data == encoder_minimum) {
+      left_wheel_tick_count.data = encoder_maximum;
+    }
+    else {
+      left_wheel_tick_count.data--;  
+    }   
   }
 }
  
-// If ping received, set the sensor distance to array.
-void echoCheck() {
-  if (sonar[currentSensor].check_timer())
-    cm[currentSensor] = sonar[currentSensor].ping_result / US_ROUNDTRIP_CM;
+/////////////////////// Pwm subscribing ////////////////////////////
+ 
+
+ 
+
+ 
+
+ 
+void set_pwm_values(const std_msgs::Int16& left_pwm_out) {
+ lastPwmReceived = (millis()/1000);
+ pwmLeftReq = left_pwm_out.data;
+ 
 }
  
-//Return the last valid value from the sensor.
-void oneSensorCycle() {
-  leftSensor   = returnLastValidRead(0, cm[0]);
-  centerSensor = returnLastValidRead(1, cm[1]);
-  rightSensor  = returnLastValidRead(2, cm[2]);
-}
- 
-//If sensor value is 0, then return the last stored value different than 0.
-int returnLastValidRead(uint8_t sensorArray, uint8_t cm) {
-  if (cm != 0) {
-    return oldSensorReading[sensorArray] = cm;
-  } else {
-    return oldSensorReading[sensorArray];
-  }
-}
- 
-//Apply Kalman Filter to sensor reading.
-void applyKF() {
-  leftSensorKalman   = KF_Left.updateEstimate(leftSensor);
-  centerSensorKalman = KF_Center.updateEstimate(centerSensor);
-  rightSensorKalman  = KF_Right.updateEstimate(rightSensor);
-}
- 
-void startTimer() {
-  _timerStart = millis();
-}
- 
-bool isTimeForLoop(int _mSec) {
-  return (millis() - _timerStart) > _mSec;
-}
- 
-void sensor_msg_init(sensor_msgs::Range &range_name, char *frame_id_name)
-{
-  range_name.radiation_type = sensor_msgs::Range::ULTRASOUND;
-  range_name.header.frame_id = frame_id_name;
-  range_name.field_of_view = 0.26;
-  range_name.min_range = 0.0;
-  range_name.max_range = 2.0;
-}
- 
-//Create three instances for range messages.
-sensor_msgs::Range range_left;
-sensor_msgs::Range range_center;
-sensor_msgs::Range range_right;
- 
-//Create publisher onjects for all sensors
-ros::Publisher pub_range_left("/ultrasound_left", &range_left);
-ros::Publisher pub_range_center("/ultrasound_center", &range_center);
-ros::Publisher pub_range_right("/ultrasound_right", &range_right);
- 
+// Set up ROS subscriber to the velocity command
+ros::Subscriber<std_msgs::Int16> subLeftPwm("left_motor_pwm" , &set_pwm_values);
+
 void setup() {
-  pingTimer[0] = millis() + 75;
-  for (uint8_t i = 1; i < SONAR_NUM; i++)
-    pingTimer[i] = pingTimer[i - 1] + PING_INTERVAL;
  
+  // Set pin states of the encoder
+  pinMode(ENC_IN_LEFT_A , INPUT_PULLUP);
+  pinMode(ENC_IN_LEFT_B , INPUT);
+  //pinMode(ENC_IN_RIGHT_A , INPUT_PULLUP);
+  //pinMode(ENC_IN_RIGHT_B , INPUT);
+ 
+  // Every time the pin goes high, this is a tick
+  attachInterrupt(digitalPinToInterrupt(ENC_IN_LEFT_A), left_wheel_tick, RISING);
+  //attachInterrupt(digitalPinToInterrupt(ENC_IN_RIGHT_A), right_wheel_tick, RISING);
+   
+  // Motor control pins are outputs
+  pinMode(enA, OUTPUT);
+  //pinMode(enB, OUTPUT);
+  pinMode(in1, OUTPUT);
+  pinMode(in2, OUTPUT);
+  //pinMode(in3, OUTPUT);
+  //pinMode(in4, OUTPUT);
+  
+  // Turn off motors - Initial state
+  digitalWrite(in1, LOW);
+  digitalWrite(in2, LOW);
+  //digitalWrite(in3, LOW);
+  //digitalWrite(in4, LOW);
+  
+  // Set the motor speed
+  analogWrite(enA, 0); 
+  //analogWrite(enB, 0);
+ 
+  // ROS Setup
+  //nh.getHardware()->setBaud(57600);
   nh.initNode();
-  nh.advertise(pub_range_left);
-  nh.advertise(pub_range_center);
-  nh.advertise(pub_range_right);
- 
-  sensor_msg_init(range_left, "/ultrasound_left");
-  sensor_msg_init(range_center, "/ultrasound_center");
-  sensor_msg_init(range_right, "/ultrasound_right");
+  //nh.advertise(rightPub);
+  nh.advertise(leftPub);
+  nh.subscribe(subLeftPwm);
 }
  
 void loop() {
-  if (isTimeForLoop(LOOPING)) {
-    sensorCycle();
-    oneSensorCycle();
-    applyKF();
-    range_left.range   = leftSensorKalman; 
-    range_center.range = centerSensorKalman;
-    range_right.range  = rightSensorKalman;
-    // without the filter
-    //range_left.range   = leftSensor; 
-    //range_center.range = centerSensor;
-    //range_right.range  = rightSensor;
-    
-    range_left.header.stamp = nh.now();
-    range_center.header.stamp = nh.now();
-    range_right.header.stamp = nh.now();
+   
+  nh.spinOnce();
+   
+  // Record the time
+  currentMillis = millis();
  
-    pub_range_left.publish(&range_left);
-    pub_range_center.publish(&range_center);
-    pub_range_right.publish(&range_right);
+  // If the time interval has passed, publish the number of ticks,
+  // and set pwm
+  if (currentMillis - previousMillis > interval) {
+     
+    previousMillis = currentMillis;
  
-    startTimer();
+    // Publish tick counts to topics
+    leftPub.publish( &left_wheel_tick_count );
+    //rightPub.publish( &right_wheel_tick_count );
+ 
+     
   }
-  nh.spinOnce();//Handle ROS events
+   
+  // Stop the car if there are no pwm messages in the last 1 sec
+  if((millis()/1000) - lastPwmReceived > 1) {
+    pwmLeftReq = 0;
+    analogWrite(enA, 0);
+  }
+  else { 
+      set_pwm_values();
+      analogWrite(enA, pwmLeftReq);
+  }
+  
 }
