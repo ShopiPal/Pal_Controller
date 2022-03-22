@@ -12,7 +12,7 @@
  
 #include <ros.h>
 #include <std_msgs/Int16.h>
-#include <geometry_msgs/Twist.h>
+
  
 // Handles startup and shutdown of ROS
 ros::NodeHandle nh;
@@ -42,8 +42,7 @@ const int encoder_maximum = 32767;
 //ros::Publisher rightPub("right_ticks", &right_wheel_tick_count);
  
 std_msgs::Int16 left_wheel_tick_count;
-ros::Publisher leftPub("encoder_left_ticks", &left_wheel_tick_count);
-ros::Subscriber<std_msgs::Int16> leftPwm("left_motor_pwm" , &left_motor_pwm_req);
+ros::Publisher leftPub("/encoder_left_ticks", &left_wheel_tick_count);
  
 // Time interval for measurements in milliseconds
 const int interval = 100;
@@ -145,8 +144,8 @@ void set_pwm_values(const std_msgs::Int16& left_pwm_out) {
  
 }
  
-// Set up ROS subscriber to the velocity command
-ros::Subscriber<std_msgs::Int16> subLeftPwm("left_motor_pwm" , &set_pwm_values);
+// Set up ROS subscriber to the pwm command
+ros::Subscriber<std_msgs::Int16> subLeftPwm("/left_motor_pwm" , &set_pwm_values);
 
 void setup() {
  
@@ -185,7 +184,7 @@ void setup() {
   nh.advertise(leftPub);
   nh.subscribe(subLeftPwm);
 }
- 
+
 void loop() {
    
   nh.spinOnce();
