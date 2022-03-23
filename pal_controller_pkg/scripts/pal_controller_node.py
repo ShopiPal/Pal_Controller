@@ -2,8 +2,8 @@
 import rospy
 
 
-from std_msgs.msg import Int64
-from std_msgs.msg import Float64
+#from std_msgs.msg import Int64
+#from std_msgs.msg import Float64
 from std_msgs.msg import Int16
 
 class Controller:
@@ -16,21 +16,19 @@ class Controller:
 
         ## set parameters
         
-        self.PWM_Output = 0
+        self.pwm_left_out =  Int16()
+        self.pwm_left_out.data = 200
 
         self.left_encoder_value = 0
 
     
     def publish_pwm(self):
-         
-        pwm_left_out =  Int16()
-        #pwm_right_out = Int16()
+          
+        #self.pwm_left_out.data =  palPID(.....)
+        #self.pwm_right_out.data = palPID(.....) 
+        
 
-         
-        #pwm_left_out.data =  palPID(.....)
-        #pwm_right_out.data = palPID(.....) 
-
-        self.leftPwmPublisher.publish(pwm_left_out)
+        self.leftPwmPublisher.publish(self.pwm_left_out)
         #self.rightPwmPublisher.publish(pwm_right_out)
         
     def leftEncoder_callback(self,msg):

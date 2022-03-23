@@ -20,12 +20,12 @@ ros::NodeHandle nh;
 ////////////////// Tick Data Publishing Variables and Constants ///////////////
  
 // Encoder output to Arduino Interrupt pin. Tracks the tick count.
-#define ENC_IN_LEFT_A 18
+#define ENC_IN_LEFT_A 18 //yellow
 //#define ENC_IN_RIGHT_A 3
  
 // Other encoder output to Arduino to keep track of wheel direction
 // Tracks the direction of rotation.
-#define ENC_IN_LEFT_B 19
+#define ENC_IN_LEFT_B 19 // white
 //#define ENC_IN_RIGHT_B 11
  
 // True = Forward; False = Reverse
@@ -53,9 +53,9 @@ long currentMillis = 0;
 int pwmLeftReq = 0;
  
 // Motor A connections -------------- TO DO --------------
-const int enA = 9;
-const int in1 = 5;
-const int in2 = 6;
+const int pwmA = 12 ; //yellow
+const int in1 = 11 ; // orange
+const int in2 = 10 ; // purple
   
 // Motor B connections
 //const int enB = 10; 
@@ -141,6 +141,8 @@ void left_wheel_tick() {
 void set_pwm_values(const std_msgs::Int16& left_pwm_out) {
  lastPwmReceived = (millis()/1000);
  pwmLeftReq = left_pwm_out.data;
+ analogWrite(pwmA, pwmLeftReq);
+ 
  
 }
  
@@ -160,7 +162,7 @@ void setup() {
   //attachInterrupt(digitalPinToInterrupt(ENC_IN_RIGHT_A), right_wheel_tick, RISING);
    
   // Motor control pins are outputs
-  pinMode(enA, OUTPUT);
+  pinMode(pwmA, OUTPUT);
   //pinMode(enB, OUTPUT);
   pinMode(in1, OUTPUT);
   pinMode(in2, OUTPUT);
@@ -174,7 +176,7 @@ void setup() {
   //digitalWrite(in4, LOW);
   
   // Set the motor speed
-  analogWrite(enA, 0); 
+  analogWrite(pwmA, 0); 
   //analogWrite(enB, 0);
  
   // ROS Setup
@@ -186,7 +188,8 @@ void setup() {
 }
 
 void loop() {
-   
+  digitalWrite(in1, LOW);
+  digitalWrite(in2, HIGH);
   nh.spinOnce();
    
   // Record the time
@@ -208,11 +211,8 @@ void loop() {
   // Stop the car if there are no pwm messages in the last 1 sec
   if((millis()/1000) - lastPwmReceived > 1) {
     pwmLeftReq = 0;
-    analogWrite(enA, 0);
+    analogWrite(pwmA, 0);
   }
-  else { 
-      set_pwm_values();
-      analogWrite(enA, pwmLeftReq);
-  }
+  Serial.println(pwmLeftReq);
   
 }
