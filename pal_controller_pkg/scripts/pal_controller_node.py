@@ -10,26 +10,27 @@ class Controller:
 
     def __init__(self):
         self.leftPwmPublisher = rospy.Publisher("/left_motor_pwm",Int16,queue_size=10)
-        #self.rightPwmPublisher = rospy.Publisher("/right_pwm",Int16,queue_size=10)
+        self.rightPwmPublisher = rospy.Publisher("/right_motor_pwm",Int16,queue_size=10)
         self.leftEncoderSub = rospy.Subscriber("/encoder_left_ticks",Int16,self.leftEncoder_callback)
-        #self.rightEncoderSub = rospy.Subscriber("/encoder_right_ticks",Int16,rightEncoder_callback)
+        self.rightEncoderSub = rospy.Subscriber("/encoder_right_ticks",Int16,self.rightEncoder_callback)
 
         ## set parameters
-        
+        ## left params
         self.pwm_left_out =  Int16()
-        self.pwm_left_out.data = 200
-
+        self.pwm_left_out.data = 20
         self.left_encoder_value = 0
-
+        ## right params
+        self.pwm_right_out =  Int16()
+        self.pwm_right_out.data = -20
+        self.right_encoder_value = 0
     
     def publish_pwm(self):
           
         #self.pwm_left_out.data =  palPID(.....)
         #self.pwm_right_out.data = palPID(.....) 
         
-
         self.leftPwmPublisher.publish(self.pwm_left_out)
-        #self.rightPwmPublisher.publish(pwm_right_out)
+        self.rightPwmPublisher.publish(self.pwm_right_out)
         
     def leftEncoder_callback(self,msg):
         self.left_encoder_value = msg.data
