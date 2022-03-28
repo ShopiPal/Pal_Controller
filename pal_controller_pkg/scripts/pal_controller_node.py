@@ -17,11 +17,11 @@ class Controller:
         ## set parameters
         ## left params
         self.pwm_left_out =  Int16()
-        self.pwm_left_out.data = 20
+        self.pwm_left_out.data = 60
         self.left_encoder_value = 0
         ## right params
         self.pwm_right_out =  Int16()
-        self.pwm_right_out.data = -20
+        self.pwm_right_out.data = 60
         self.right_encoder_value = 0
     
     def publish_pwm(self):
