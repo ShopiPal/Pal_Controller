@@ -25,7 +25,7 @@ class Controller:
         self.cmd_vel = rospy.Subscriber("/cmd_vel",Twist,self.control_vel_callback)
         self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 10)
         
-        self.rate = rospy.Rate(10)
+        #self.rate = rospy.Rate(1)
 
         # init encoder max and min
         self.encoder_minimum = -32768
@@ -39,7 +39,7 @@ class Controller:
         ## init msgs
         ## left params
         self.pwm_left_out =  Int16()
-        self.pwm_left_out.data = 30     ## for now insert here to set velocity
+        self.pwm_left_out.data = -70     ## for now insert here to set velocity    
         self.current_left_encoder_value = 0
         self.last_left_encoder_value = 0
         
@@ -48,7 +48,7 @@ class Controller:
 
         ## right params
         self.pwm_right_out =  Int16()
-        self.pwm_right_out.data = 30      ## for now insert here to set velocity
+        self.pwm_right_out.data = 70      ## for now insert here to set velocity
         self.last_right_encoder_value = 0
         self.current_right_encoder_value = 0
         self.rwheel_rpm = Float64()
@@ -56,8 +56,8 @@ class Controller:
 
 
         # init parameters
-        self.R = 0.127
-        self.L = 0.4
+        self.R = 0.127/2
+        self.L = 0.56
         self.N = 480
         self.x = 0  
         self.y = 0 
@@ -67,7 +67,7 @@ class Controller:
         self.odom = Odometry()
         self.odom_broadcaster = TransformBroadcaster()
 
-        self.update_pose()
+       # self.update_pose()
 
 
     def control_vel_callback(self,msg):
@@ -108,11 +108,12 @@ class Controller:
 
     def update_pose(self):
         
-        while not rospy.is_shutdown():
+       # while not rospy.is_shutdown():
 
             current_lticks = self.current_left_encoder_value
             last_lticks = self.last_left_encoder_value
             delta_lticks = self.calc_ticks(current_lticks,last_lticks)
+            rospy.loginfo("left delta ticks [ticks] = %s" , delta_lticks)
 
             current_rticks = self.current_right_encoder_value
             last_rticks = self.last_right_encoder_value
@@ -120,16 +121,21 @@ class Controller:
             rospy.loginfo("right delta ticks [ticks] = %s" , delta_rticks)
 
             dl = 2 * pi * self.R * (delta_lticks/self.N)
+            rospy.loginfo("right wheel distance [m] = %s" ,dl)
             dr = 2 * pi * self.R * (delta_rticks/self.N)
-            rospy.loginfo("right wheel distance [m/s] = %s" ,dr)
+            rospy.loginfo("right wheel distance [m] = %s" ,dr)
+
+            dc = (dl + dr)/2
+            rospy.loginfo("total wheel distance [m] = %s" ,dc)
 
             self.current_time = rospy.Time.now()
             dt = (self.current_time - self.last_time).to_sec()
             rospy.loginfo("dt [s] = %s" , dt)
 
             self.lwheel_rpm.data =  (delta_lticks/self.N)*(60/dt)
+            rospy.loginfo("left rpm [rev/min] = %s" , self.lwheel_rpm.data)
             self.rwheel_rpm.data = (delta_rticks/self.N)*(60/dt)
-            rospy.loginfo("right rpm [rev/min] = %s" , self.rwheel_rpm.data)
+            rospy.loginfo("right rpm [rev/min] = %s" , (delta_rticks/self.N)*(60/dt))
 
             vl = dl/dt
             vr = dr/dt       
@@ -138,8 +144,8 @@ class Controller:
             w = (vr - vl)/self.L
             rospy.loginfo("angular velocity [deg/s] = %s" , w)
 
-            delta_x = v * cos(self.theta)
-            delta_y = v * sin(self.theta)
+            delta_x = dc * cos(self.theta)
+            delta_y = dc * sin(self.theta)
             delta_theta = w
 
             self.x += delta_x
@@ -175,8 +181,9 @@ class Controller:
             self.last_left_encoder_value  = self.current_left_encoder_value
             self.last_right_encoder_value = self.current_right_encoder_value
 
-            self.publish()
-            self.rate.sleep()
+            #self.publish()
+            #self.rate.sleep()
+            print("\n")
 
 
 
@@ -202,18 +209,17 @@ if __name__ == '__main__':
     pal_control = Controller()
    
     
-    rospy.spin()
     
-    #rate = rospy.Rate(100)
     
-    #while not rospy.is_shutdown():
-#
-    #    
-    #    pal_control.update_pose()
-    #    
-    #    pal_control.publish()
-    #    
-    #    rate.sleep()
+    rate = rospy.Rate(1)
+    
+    while not rospy.is_shutdown():
+       
+       pal_control.update_pose()
+       
+       pal_control.publish()
+       
+       rate.sleep()
 
-    
+    #rospy.spin()
     
