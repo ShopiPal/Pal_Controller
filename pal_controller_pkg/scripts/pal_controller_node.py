@@ -23,7 +23,7 @@ class Controller:
         self.left_wheel_rpm_pub = rospy.Publisher("/left_wheel_rpm", Float64 , queue_size = 10)
         self.right_wheel_rpm_pub = rospy.Publisher("/right_wheel_rpm", Float64 , queue_size = 10)
         self.cmd_vel = rospy.Subscriber("/cmd_vel",Twist,self.control_vel_callback)
-        self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 10)
+        self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 20)
         
         #self.rate = rospy.Rate(1)
 
@@ -39,7 +39,7 @@ class Controller:
         ## init msgs
         ## left params
         self.pwm_left_out =  Int16()
-        self.pwm_left_out.data = -70     ## for now insert here to set velocity    
+        self.pwm_left_out.data = 50     ## for now insert here to set velocity    
         self.current_left_encoder_value = 0
         self.last_left_encoder_value = 0
         
@@ -48,7 +48,7 @@ class Controller:
 
         ## right params
         self.pwm_right_out =  Int16()
-        self.pwm_right_out.data = 70      ## for now insert here to set velocity
+        self.pwm_right_out.data = 50      ## for now insert here to set velocity
         self.last_right_encoder_value = 0
         self.current_right_encoder_value = 0
         self.rwheel_rpm = Float64()
@@ -120,9 +120,9 @@ class Controller:
             delta_rticks =  self.calc_ticks(current_rticks,last_rticks)
             rospy.loginfo("right delta ticks [ticks] = %s" , delta_rticks)
 
-            dl = 2 * pi * self.R * (delta_lticks/self.N)
-            rospy.loginfo("right wheel distance [m] = %s" ,dl)
-            dr = 2 * pi * self.R * (delta_rticks/self.N)
+            dl =  2*pi*self.R*delta_lticks/self.N 
+            rospy.loginfo("left wheel distance [m] = %s" ,dl)
+            dr = 2*pi*self.R*delta_rticks/self.N
             rospy.loginfo("right wheel distance [m] = %s" ,dr)
 
             dc = (dl + dr)/2
@@ -132,10 +132,10 @@ class Controller:
             dt = (self.current_time - self.last_time).to_sec()
             rospy.loginfo("dt [s] = %s" , dt)
 
-            self.lwheel_rpm.data =  (delta_lticks/self.N)*(60/dt)
+            self.lwheel_rpm.data =  (delta_lticks*60)/(self.N*dt)
             rospy.loginfo("left rpm [rev/min] = %s" , self.lwheel_rpm.data)
-            self.rwheel_rpm.data = (delta_rticks/self.N)*(60/dt)
-            rospy.loginfo("right rpm [rev/min] = %s" , (delta_rticks/self.N)*(60/dt))
+            self.rwheel_rpm.data = (delta_rticks*60)/(self.N*dt)
+            rospy.loginfo("right rpm [rev/min] = %s" , self.rwheel_rpm.data)
 
             vl = dl/dt
             vr = dr/dt       
@@ -153,9 +153,11 @@ class Controller:
             self.theta += delta_theta
 
             if (self.theta > (180)):
-                self.theta = self.theta - 180
-            if (self.theta < -180 ):
-                self.theta = self.theta + 180
+                self.theta = self.theta - 360
+            if (self.theta <= -180 ):
+                self.theta = self.theta + 360
+
+            rospy.loginfo("theta [deg] = %s" , self.theta)
 
             odom_quat = tf.transformations.quaternion_from_euler(0,0,self.theta)
             #quaternion = Quaternion()
