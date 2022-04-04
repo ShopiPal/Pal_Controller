@@ -39,7 +39,7 @@ class Controller:
         ## init msgs
         ## left params
         self.pwm_left_out =  Int16()
-        self.pwm_left_out.data = 40     ## for now insert here to set velocity    
+        self.pwm_left_out.data = -140     ## for now insert here to set velocity    
         self.current_left_encoder_value = 0
         self.last_left_encoder_value = 0
         
@@ -98,9 +98,10 @@ class Controller:
         self.current_right_encoder_value = msg.data
 
     def calc_ticks(self,current_ticks , last_ticks):
-        if((current_ticks>0)and(last_ticks<0)):
+
+        if((current_ticks>0)and(last_ticks<0)) and (current_ticks - last_ticks)>32767: #passing Reverse from min to max
             return ((current_ticks - self.encoder_maximum)+(self.encoder_minimum-last_ticks))
-        elif((current_ticks<0)and(last_ticks>0)):
+        elif((current_ticks<0)and(last_ticks>0))and (current_ticks - last_ticks)<-32767: #passing Forward from max to min
             return ((current_ticks - self.encoder_minimum)+(self.encoder_maximum-last_ticks))
         else:
             return current_ticks - last_ticks
@@ -113,6 +114,7 @@ class Controller:
             current_lticks = self.current_left_encoder_value
             last_lticks = self.last_left_encoder_value
             delta_lticks = self.calc_ticks(current_lticks,last_lticks)
+            rospy.loginfo("left current ticks is = %s , last ticks is = %s" , current_lticks ,last_lticks )
             rospy.loginfo("left delta ticks [ticks] = %s" , delta_lticks)
 
             current_rticks = self.current_right_encoder_value
