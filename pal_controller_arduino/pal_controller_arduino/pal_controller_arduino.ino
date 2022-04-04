@@ -166,13 +166,13 @@ ros::Publisher pub_range_front_left("/sonar_front_left", &range_front_left);
 ////////////////// Tick Data Publishing Variables and Constants ///////////////
  
 // Encoder output to Arduino Interrupt pin. Tracks the tick count.
-#define ENC_IN_LEFT_A 18 //yellow
-#define ENC_IN_RIGHT_A 3 //yellow
+#define ENC_IN_LEFT_A 18 //white
+#define ENC_IN_RIGHT_A 2 //white
  
 // Other encoder output to Arduino to keep track of wheel direction
 // Tracks the direction of rotation.
-#define ENC_IN_LEFT_B 19 // white
-#define ENC_IN_RIGHT_B 2 // white
+#define ENC_IN_LEFT_B 19 // yellow
+#define ENC_IN_RIGHT_B 3 // yellow ############################## edit fritzing
  
 // True = Forward; False = Reverse
 boolean Direction_left = true;

@@ -39,7 +39,7 @@ class Controller:
         ## init msgs
         ## left params
         self.pwm_left_out =  Int16()
-        self.pwm_left_out.data = 50     ## for now insert here to set velocity    
+        self.pwm_left_out.data = 40     ## for now insert here to set velocity    
         self.current_left_encoder_value = 0
         self.last_left_encoder_value = 0
         
@@ -48,7 +48,7 @@ class Controller:
 
         ## right params
         self.pwm_right_out =  Int16()
-        self.pwm_right_out.data = 50      ## for now insert here to set velocity
+        self.pwm_right_out.data = 0      ## for now insert here to set velocity
         self.last_right_encoder_value = 0
         self.current_right_encoder_value = 0
         self.rwheel_rpm = Float64()
