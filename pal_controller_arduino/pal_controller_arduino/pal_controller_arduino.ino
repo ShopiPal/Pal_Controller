@@ -364,7 +364,7 @@ void setup() {
   analogWrite(pwmB, 0);
  
   // ROS Setup
-  //nh.getHardware()->setBaud(57600);
+  nh.getHardware()->setBaud(115200); ///changed from 57600
   nh.initNode();
   nh.advertise(rightPub);
   nh.advertise(leftPub);
@@ -379,69 +379,78 @@ void setup() {
 }
 
 void loop() {
-  nh.spinOnce();
-// if (isTimeForLoop(LOOPING)) {       ---> need to check
-  sensorCycle();
-  oneSensorCycle();
-  applyKF(); //with filtering
-  range_front.range   = frontSensorKalman; 
-  range_back.range = backSensorKalman;
-  range_right.range  = rightSensorKalman;
-  range_left.range  = leftSensorKalman;
-  range_front_right.range  = front_rightSensorKalman;
-  range_front_left.range  = front_leftSensorKalman;
-  
-  // without the filter
-  //range_front.range   = frontSensor; 
-  //range_back.range = backSensor;
-  //range_right.range  = rightSensor;
-  //range_left.range  = leftSensor;
-  //range_front_right.range  = front_rightSensor;
-  //range_front_left.range  = front_leftSensor;
-  
-  
-  
-  range_front.header.stamp = nh.now();
-  range_back.header.stamp = nh.now();
-  range_right.header.stamp = nh.now();
-  range_left.header.stamp = nh.now();
-  range_front_right.header.stamp = nh.now();
-  range_front_left.header.stamp = nh.now();
 
-  pub_range_front.publish(&range_front);
-  pub_range_back.publish(&range_back);
-  pub_range_right.publish(&range_right);
-  pub_range_left.publish(&range_left);
-  pub_range_front_right.publish(&range_front_right);
-  pub_range_front_left.publish(&range_front_left);
-
- // startTimer();
-//}
-
-  // Record the time
-  currentMillis = millis();
- 
-  // If the time interval has passed, publish the number of ticks,
-  // and set pwm
-  if (currentMillis - previousMillis > interval) {
+  unsigned long currentMillis = millis();
+  if (currentMillis-previousMillis >= 20){
      
-    previousMillis = currentMillis;
+  
+// if (isTimeForLoop(LOOPING)) {       ---> need to check
+    sensorCycle();
+    oneSensorCycle();
+    applyKF(); //with filtering
+    range_front.range   = frontSensorKalman; 
+    range_back.range = backSensorKalman;
+    range_right.range  = rightSensorKalman;
+    range_left.range  = leftSensorKalman;
+    range_front_right.range  = front_rightSensorKalman;
+    range_front_left.range  = front_leftSensorKalman;
+    
+    // without the filter
+    //range_front.range   = frontSensor; 
+    //range_back.range = backSensor;
+    //range_right.range  = rightSensor;
+    //range_left.range  = leftSensor;
+    //range_front_right.range  = front_rightSensor;
+    //range_front_left.range  = front_leftSensor;
+    
+    
+    
+    range_front.header.stamp = nh.now();
+    range_back.header.stamp = nh.now();
+    range_right.header.stamp = nh.now();
+    range_left.header.stamp = nh.now();
+    range_front_right.header.stamp = nh.now();
+    range_front_left.header.stamp = nh.now();
+  
+    pub_range_front.publish(&range_front);
+    pub_range_back.publish(&range_back);
+    pub_range_right.publish(&range_right);
+    pub_range_left.publish(&range_left);
+    pub_range_front_right.publish(&range_front_right);
+    pub_range_front_left.publish(&range_front_left);
+  
+   // startTimer();
+  //}
+  
+    // Record the time
+    
+   
+    // If the time interval has passed, publish the number of ticks,
+    // and set pwm
+   // if (currentMillis - previousMillis > interval) {
+       
+    
  
     // Publish tick counts to topics
     leftPub.publish( &left_wheel_tick_count );
     rightPub.publish( &right_wheel_tick_count );
  
      
-  }
-   
-  // Stop the car if there are no pwm messages in the last 1 sec
-  if((millis()/1000) - left_lastPwmReceived > 1) {
-    pwmLeftReq = 0;
-    analogWrite(pwmA, 0);
-  }
-  if((millis()/1000) - right_lastPwmReceived > 1) {
-    pwmRightReq = 0;
-    analogWrite(pwmB, 0);
-  }
+  //}
+     
+    // Stop the car if there are no pwm messages in the last 1 sec
+    if((millis()/1000) - left_lastPwmReceived > 2) {   ////// changed to 2 from 1 sec
+      pwmLeftReq = 0;
+      analogWrite(pwmA, 0);
+    }
+    if((millis()/1000) - right_lastPwmReceived > 2) {   ////// changed to 2 from 1 sec
+      pwmRightReq = 0;
+      analogWrite(pwmB, 0);
+    }
+
+    previousMillis = currentMillis+10;
+  } 
+
   
+ nh.spinOnce(); 
 }

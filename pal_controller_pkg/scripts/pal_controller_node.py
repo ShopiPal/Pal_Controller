@@ -4,7 +4,7 @@ from math import pi , cos , sin
 #from std_msgs.msg import Int64
 from std_msgs.msg import Float64
 from std_msgs.msg import Int16
-from geometry_msgs.msg import Pose,Twist   , Point , Quaternion , Vector3
+from geometry_msgs.msg import Pose ,Twist , Point , Quaternion , Vector3
 from nav_msgs.msg import Odometry 
 import tf
 from tf.broadcaster import TransformBroadcaster
@@ -16,14 +16,14 @@ class Controller:
     def __init__(self):
         
         ## init publisher and subscribers
-        self.left_pwm_publisher = rospy.Publisher("/left_motor_pwm",Int16,queue_size=10) 
-        self.right_pwm_publisher = rospy.Publisher("/right_motor_pwm",Int16,queue_size=10) 
+        self.left_pwm_publisher = rospy.Publisher("/left_motor_pwm",Int16,queue_size=50) 
+        self.right_pwm_publisher = rospy.Publisher("/right_motor_pwm",Int16,queue_size=50) 
         self.left_encoder_sub = rospy.Subscriber("/encoder_left_ticks",Int16,self.leftEncoder_callback)
         self.right_encoder_sub = rospy.Subscriber("/encoder_right_ticks",Int16,self.rightEncoder_callback)
         self.left_wheel_rpm_pub = rospy.Publisher("/left_wheel_rpm", Float64 , queue_size = 10)
         self.right_wheel_rpm_pub = rospy.Publisher("/right_wheel_rpm", Float64 , queue_size = 10)
         self.cmd_vel = rospy.Subscriber("/cmd_vel",Twist,self.control_vel_callback)
-        self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 20)
+        self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 50)
         
         #self.rate = rospy.Rate(1)
 
@@ -39,7 +39,7 @@ class Controller:
         ## init msgs
         ## left params
         self.pwm_left_out =  Int16()
-        self.pwm_left_out.data = -140     ## for now insert here to set velocity    
+        self.pwm_left_out.data = -80     ## for now insert here to set velocity    
         self.current_left_encoder_value = 0
         self.last_left_encoder_value = 0
         
@@ -135,14 +135,15 @@ class Controller:
             rospy.loginfo("dt [s] = %s" , dt)
 
             self.lwheel_rpm.data =  (delta_lticks*60)/(self.N*dt)
-            rospy.loginfo("left rpm [rev/min] = %s" , self.lwheel_rpm.data)
-            self.rwheel_rpm.data = (delta_rticks*60)/(self.N*dt)
-            rospy.loginfo("right rpm [rev/min] = %s" , self.rwheel_rpm.data)
+            #rospy.loginfo("left rpm [rev/min] = %s" , self.lwheel_rpm.data)
+            #self.rwheel_rpm.data = (delta_rticks*60)/(self.N*dt)
+            #rospy.loginfo("right rpm [rev/min] = %s" , self.rwheel_rpm.data)
 
             vl = dl/dt
             vr = dr/dt       
-            v =  abs((vl + vr)/2)
+            v =  (vl + vr)/2
             rospy.loginfo("linear velocity [m/s] = %s" , v)
+           
             w = (vr - vl)/self.L
             rospy.loginfo("angular velocity [deg/s] = %s" , w)
 
@@ -201,6 +202,9 @@ class Controller:
         # set velocity
         self.odom.twist.twist = Twist(Vector3(v,0,0), Vector3(0,0,w))
         
+
+
+        
     
 
 
@@ -215,7 +219,7 @@ if __name__ == '__main__':
     
     
     
-    rate = rospy.Rate(1)
+    rate = rospy.Rate(5)
     
     while not rospy.is_shutdown():
        
