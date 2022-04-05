@@ -364,7 +364,7 @@ void setup() {
   analogWrite(pwmB, 0);
  
   // ROS Setup
-  nh.getHardware()->setBaud(115200); ///changed from 57600
+  nh.getHardware()->setBaud(500000); ///changed from 57600
   nh.initNode();
   nh.advertise(rightPub);
   nh.advertise(leftPub);
@@ -381,10 +381,10 @@ void setup() {
 void loop() {
 
   unsigned long currentMillis = millis();
-  if (currentMillis-previousMillis >= 20){
+  //if (currentMillis-previousMillis >= 20){
      
   
-// if (isTimeForLoop(LOOPING)) {       ---> need to check
+  if (isTimeForLoop(LOOPING)) {      // ---> need to check
     sensorCycle();
     oneSensorCycle();
     applyKF(); //with filtering
@@ -419,7 +419,7 @@ void loop() {
     pub_range_front_right.publish(&range_front_right);
     pub_range_front_left.publish(&range_front_left);
   
-   // startTimer();
+    
   //}
   
     // Record the time
@@ -436,7 +436,7 @@ void loop() {
     rightPub.publish( &right_wheel_tick_count );
  
      
-  //}
+ 
      
     // Stop the car if there are no pwm messages in the last 1 sec
     if((millis()/1000) - left_lastPwmReceived > 2) {   ////// changed to 2 from 1 sec
@@ -447,8 +447,9 @@ void loop() {
       pwmRightReq = 0;
       analogWrite(pwmB, 0);
     }
-
+    startTimer();
     previousMillis = currentMillis+10;
+    
   } 
 
   

@@ -39,7 +39,7 @@ class Controller:
         ## init msgs
         ## left params
         self.pwm_left_out =  Int16()
-        self.pwm_left_out.data = -80     ## for now insert here to set velocity    
+        self.pwm_left_out.data = -50     ## for now insert here to set velocity    
         self.current_left_encoder_value = 0
         self.last_left_encoder_value = 0
         
@@ -56,10 +56,10 @@ class Controller:
 
 
         # init parameters
-        self.R = 0.127/2
-        self.L = 0.56
-        self.N = 480
-        self.x = 0  
+        self.R = 0.127/2    # need to update
+        self.L = 0.56       # need to update
+        self.N = 480       
+        self.x = 0      
         self.y = 0 
         self.theta = 0
 
