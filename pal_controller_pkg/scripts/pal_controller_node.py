@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import rospy
 from math import pi , cos , sin 
-#from std_msgs.msg import Int64
 from std_msgs.msg import Float64
 from std_msgs.msg import Int16
+from pal_controller_pkg.srv import PwmVal , PwmValResponse
 from geometry_msgs.msg import Pose ,Twist , Point , Quaternion , Vector3
 from nav_msgs.msg import Odometry 
 import tf
@@ -24,6 +24,8 @@ class Controller:
         self.right_wheel_rpm_pub = rospy.Publisher("/right_wheel_rpm", Float64 , queue_size = 10)
         self.cmd_vel = rospy.Subscriber("/cmd_vel",Twist,self.control_vel_callback)
         self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 50)
+
+        self.set_pwm_service = rospy.Service('/set_pwm', PwmVal , self.set_pwm_callback)
         
         #self.rate = rospy.Rate(1)
 
@@ -39,7 +41,7 @@ class Controller:
         ## init msgs
         ## left params
         self.pwm_left_out =  Int16()
-        self.pwm_left_out.data = -50     ## for now insert here to set velocity    
+        self.pwm_left_out.data = 0     ## for now insert here to set velocity    
         self.current_left_encoder_value = 0
         self.last_left_encoder_value = 0
         
@@ -90,6 +92,21 @@ class Controller:
 
         # publish odom
         self.odom_publisher.publish(self.odom)
+
+    def set_pwm_callback(self, request):
+        response = PwmValResponse()
+        if ((request.pwm_left<-255)or(request.pwm_left>255)or(request.pwm_right<-255)or(request.pwm_right>255)):
+            print("There is unvalid value")
+            response.success = False
+        else:
+            self.pwm_left_out.data = request.pwm_left
+            self.pwm_right_out.data = request.pwm_right
+            print("left motor pwm set to : " +str(self.pwm_left_out.data))
+            print("right motor pwm set to : " +str(self.pwm_right_out.data))
+            response.success = True
+        
+        return response
+
 
     def leftEncoder_callback(self,msg):
         self.current_left_encoder_value = msg.data
