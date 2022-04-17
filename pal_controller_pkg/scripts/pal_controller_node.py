@@ -4,6 +4,7 @@ from math import pi , cos , sin
 from std_msgs.msg import Float64
 from std_msgs.msg import Int16
 from pal_controller_pkg.srv import PwmVal , PwmValResponse
+from std_srvs.srv import SetBool , SetBoolResponse
 from geometry_msgs.msg import Pose ,Twist , Point , Quaternion , Vector3
 from nav_msgs.msg import Odometry 
 import tf
@@ -16,18 +17,17 @@ class Controller:
     def __init__(self):
         
         ## init publisher and subscribers
-        self.left_pwm_publisher = rospy.Publisher("/left_motor_pwm",Int16,queue_size=50) 
-        self.right_pwm_publisher = rospy.Publisher("/right_motor_pwm",Int16,queue_size=50) 
+        self.left_pwm_publisher = rospy.Publisher("/left_motor_pwm",Int16,queue_size=1000) 
+        self.right_pwm_publisher = rospy.Publisher("/right_motor_pwm",Int16,queue_size=1000) 
         self.left_encoder_sub = rospy.Subscriber("/encoder_left_ticks",Int16,self.leftEncoder_callback)
         self.right_encoder_sub = rospy.Subscriber("/encoder_right_ticks",Int16,self.rightEncoder_callback)
-        self.left_wheel_rpm_pub = rospy.Publisher("/left_wheel_rpm", Float64 , queue_size = 10)
-        self.right_wheel_rpm_pub = rospy.Publisher("/right_wheel_rpm", Float64 , queue_size = 10)
         self.cmd_vel = rospy.Subscriber("/cmd_vel",Twist,self.control_vel_callback)
-        self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 50)
+        self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 1000)
 
-        self.set_pwm_service = rospy.Service('/set_pwm', PwmVal , self.set_pwm_callback)
-        
-        #self.rate = rospy.Rate(1)
+        ## init services
+        self.set_pwm_service = rospy.Service('motors/set_pwm', PwmVal , self.set_pwm_callback)
+        self.motors_stop_service = rospy.Service('motors/stop', SetBool , self.stop_callback)
+
 
         # init encoder max and min
         self.encoder_minimum = -32768
@@ -69,11 +69,19 @@ class Controller:
         self.odom = Odometry()
         self.odom_broadcaster = TransformBroadcaster()
 
+        ## shutdownhook process
+        self.ctrl_c = False
+        rospy.on_shutdown(self.shutdownhook)
+
        # self.update_pose()
 
+    def shutdownhook(self):
+        rospy.loginfo("shutting down")
+        self.stop()
+        self.ctrl_c = True
 
     def control_vel_callback(self,msg):
-        ## calculate cmd_rpms from a given cmd_vel and insert to the pid controller for pwm output
+        ## calculate cmd_motors_vels from a given cmd_vel and insert to the pid controller for pwm output
 
 
         #self.pwm_left_out.data =  palPID(.....)
@@ -82,10 +90,6 @@ class Controller:
 
     def publish(self):
         
-        # publish rpm
-        self.left_wheel_rpm_pub.publish(self.lwheel_rpm)
-        self.right_wheel_rpm_pub.publish(self.rwheel_rpm)
-
         # publish pwm
         self.left_pwm_publisher.publish(self.pwm_left_out)
         self.right_pwm_publisher.publish(self.pwm_right_out)
@@ -96,16 +100,52 @@ class Controller:
     def set_pwm_callback(self, request):
         response = PwmValResponse()
         if ((request.pwm_left<-255)or(request.pwm_left>255)or(request.pwm_right<-255)or(request.pwm_right>255)):
-            print("There is unvalid value")
             response.success = False
         else:
             self.pwm_left_out.data = request.pwm_left
             self.pwm_right_out.data = request.pwm_right
-            print("left motor pwm set to : " +str(self.pwm_left_out.data))
-            print("right motor pwm set to : " +str(self.pwm_right_out.data))
             response.success = True
         
         return response
+
+    def stop_callback(self, request):
+        
+        response = SetBoolResponse()
+        if request.data:
+            self.stop()
+            rospy.sleep(0.5)
+            if ((self.last_left_encoder_value == self.current_left_encoder_value) and (self.last_right_encoder_value == self.current_right_encoder_value)):
+                response.success = True
+                response.message = "motors stopped"
+
+            else:
+                response.success = False
+                response.message = "motors didn't stop from some reason"
+
+        else:
+            response.success = False
+            response.message = "enter 'true' to stop the motors" 
+
+        return response
+
+    def stop(self):
+        time_relation = 1 # [sec]
+        pwm_left = self.pwm_left_out.data
+        pwm_right = self.pwm_right_out.data
+        last_time = rospy.Time.now()
+        current_time = rospy.Time.now()
+        dt  = (current_time - last_time).to_sec()
+        rate = rospy.Rate(5)
+        while(dt < time_relation):
+            dt  = (current_time - last_time).to_sec()
+            self.pwm_left_out.data = ((-pwm_left*dt)/time_relation) + pwm_left
+            self.pwm_right_out.data = ((-pwm_right*dt)/time_relation) + pwm_right    
+            current_time = rospy.Time.now()
+            rate.sleep()
+
+        self.pwm_left_out.data = 0
+        self.pwm_right_out.data = 0
+
 
 
     def leftEncoder_callback(self,msg):
@@ -125,8 +165,6 @@ class Controller:
 
 
     def update_pose(self):
-        
-       # while not rospy.is_shutdown():
 
             current_lticks = self.current_left_encoder_value
             last_lticks = self.last_left_encoder_value
@@ -150,11 +188,6 @@ class Controller:
             self.current_time = rospy.Time.now()
             dt = (self.current_time - self.last_time).to_sec()
             rospy.loginfo("dt [s] = %s" , dt)
-
-            self.lwheel_rpm.data =  (delta_lticks*60)/(self.N*dt)
-            #rospy.loginfo("left rpm [rev/min] = %s" , self.lwheel_rpm.data)
-            #self.rwheel_rpm.data = (delta_rticks*60)/(self.N*dt)
-            #rospy.loginfo("right rpm [rev/min] = %s" , self.rwheel_rpm.data)
 
             vl = dl/dt
             vr = dr/dt       
@@ -203,8 +236,6 @@ class Controller:
             self.last_left_encoder_value  = self.current_left_encoder_value
             self.last_right_encoder_value = self.current_right_encoder_value
 
-            #self.publish()
-            #self.rate.sleep()
             print("\n")
 
 
@@ -221,24 +252,16 @@ class Controller:
         
 
 
-        
-    
-
-
-    def stop_robot():
-        return            
+         
 
 if __name__ == '__main__':
     rospy.init_node('pal_controller_node', anonymous=True)
     
     pal_control = Controller()
    
-    
-    
-    
     rate = rospy.Rate(5)
     
-    while not rospy.is_shutdown():
+    while not pal_control.ctrl_c:
        
        pal_control.update_pose()
        
