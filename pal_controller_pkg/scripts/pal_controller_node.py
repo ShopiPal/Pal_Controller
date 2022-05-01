@@ -21,7 +21,7 @@ class Controller:
         self.right_pwm_publisher = rospy.Publisher("/right_motor_pwm",Int16,queue_size=1000) 
         self.left_encoder_sub = rospy.Subscriber("/encoder_left_ticks",Int16,self.leftEncoder_callback)
         self.right_encoder_sub = rospy.Subscriber("/encoder_right_ticks",Int16,self.rightEncoder_callback)
-        self.cmd_vel = rospy.Subscriber("/cmd_vel",Twist,self.control_vel_callback)
+        self.cmd_vel_sub = rospy.Subscriber("/cmd_vel",Twist,self.control_vel_callback)
         self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 1000)
 
         ## init services
@@ -58,12 +58,15 @@ class Controller:
 
 
         # init parameters
-        self.R = 0.127/2    # need to update
-        self.L = 0.56       # need to update
+        self.R = 0.127/2    
+        self.L = 0.476       # need to update
         self.N = 480       
         self.x = 0      
         self.y = 0 
         self.theta = 0
+
+        ## init cmd_vel
+        self.cmd_vel = Twist()
 
         ## init odom and tf
         self.odom = Odometry()
@@ -82,7 +85,7 @@ class Controller:
 
     def control_vel_callback(self,msg):
         ## calculate cmd_motors_vels from a given cmd_vel and insert to the pid controller for pwm output
-
+        self.cmd_vel = msg
 
         #self.pwm_left_out.data =  palPID(.....)
         #self.pwm_right_out.data = palPID(.....)
