@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+# import libraries & ros plugins & msgs
 import rospy
 from math import pi , cos , sin 
 from std_msgs.msg import Float64
@@ -9,9 +11,34 @@ from geometry_msgs.msg import Pose ,Twist , Point , Quaternion , Vector3
 from nav_msgs.msg import Odometry 
 import tf
 from tf.broadcaster import TransformBroadcaster
+from pal_PID import PID
 
+''' 
+creation class of type 'controller'
 
+will help to deal with sensors inputs/outputs and kinematics computations
 
+publishers:  left/right_pwm 
+            odom
+
+subscribers: left/right_encoder 
+             cmd_vel
+
+services:   set_pwm
+            motors_stop
+
+methods: 
+            shutdownhook - shutdown process will call motors_stop service
+            control_vel_callback - handle with cmd_vel topic
+            publish - publish topics
+            set_pwm_callback - set pwm values to the topics
+            stop_callback - handle with stop service
+            stop - motors stop logic
+            left/rightEncoder_callback - hande with encoders topic 
+            update_pose - kinematics computations
+            calc_ticks - compute ticks delta
+            odom_msg_init - init odom msg format
+'''
 class Controller:
 
     def __init__(self):
@@ -28,23 +55,20 @@ class Controller:
         self.set_pwm_service = rospy.Service('motors/set_pwm', PwmVal , self.set_pwm_callback)
         self.motors_stop_service = rospy.Service('motors/stop', SetBool , self.stop_callback)
 
-
         # init encoder max and min
         self.encoder_minimum = -32768
         self.encoder_maximum = 32767
 
-        ## init time 
+        ## init time variables 
         self.current_time = rospy.Time.now()
         self.last_time = rospy.Time.now()
 
-        
-        ## init msgs
+        ## init msgs ##
         ## left params
         self.pwm_left_out =  Int16()
-        self.pwm_left_out.data = 0     ## for now insert here to set velocity    
+        self.pwm_left_out.data = 0     ## for now insert here to set velocity     
         self.current_left_encoder_value = 0
         self.last_left_encoder_value = 0
-        
         self.lwheel_rpm = Float64()
         self.lwheel_rpm.data = 0
 
@@ -56,8 +80,7 @@ class Controller:
         self.rwheel_rpm = Float64()
         self.rwheel_rpm.data = 0
 
-
-        # init parameters
+        # init kinematics parameters
         self.R = 0.127/2    
         self.L = 0.476       # need to update
         self.N = 480       
@@ -149,8 +172,6 @@ class Controller:
         self.pwm_left_out.data = 0
         self.pwm_right_out.data = 0
 
-
-
     def leftEncoder_callback(self,msg):
         self.current_left_encoder_value = msg.data
     
@@ -166,53 +187,53 @@ class Controller:
         else:
             return current_ticks - last_ticks
 
-
     def update_pose(self):
-
+            ## calc encoder left ticks
             current_lticks = self.current_left_encoder_value
             last_lticks = self.last_left_encoder_value
             delta_lticks = self.calc_ticks(current_lticks,last_lticks)
-            rospy.loginfo("left current ticks is = %s , last ticks is = %s" , current_lticks ,last_lticks )
             rospy.loginfo("left delta ticks [ticks] = %s" , delta_lticks)
 
+             ## calc encoder right ticks
             current_rticks = self.current_right_encoder_value
             last_rticks = self.last_right_encoder_value
             delta_rticks =  self.calc_ticks(current_rticks,last_rticks)
             rospy.loginfo("right delta ticks [ticks] = %s" , delta_rticks)
 
+            ## calc distance of wheels movment
             dl =  2*pi*self.R*delta_lticks/self.N 
             rospy.loginfo("left wheel distance [m] = %s" ,dl)
             dr = 2*pi*self.R*delta_rticks/self.N
             rospy.loginfo("right wheel distance [m] = %s" ,dr)
-
             dc = (dl + dr)/2
             rospy.loginfo("total wheel distance [m] = %s" ,dc)
 
+            ## calc dt
             self.current_time = rospy.Time.now()
             dt = (self.current_time - self.last_time).to_sec()
             rospy.loginfo("dt [s] = %s" , dt)
 
+            ## calc whells velocities
             vl = dl/dt
             vr = dr/dt       
-            v =  (vl + vr)/2
+            v =  (vl + vr)/2 # linear
             rospy.loginfo("linear velocity [m/s] = %s" , v)
-           
-            w = (vr - vl)/self.L
+            w = (vr - vl)/self.L # angular
             rospy.loginfo("angular velocity [deg/s] = %s" , w)
 
+            ## update movments relate to axises
             delta_x = dc * cos(self.theta)
             delta_y = dc * sin(self.theta)
             delta_theta = w
-
             self.x += delta_x
             self.y += delta_y
             self.theta += delta_theta
 
+            ## handle with theta limits
             if (self.theta > (180)):
                 self.theta = self.theta - 360
             if (self.theta <= -180 ):
                 self.theta = self.theta + 360
-
             rospy.loginfo("theta [deg] = %s" , self.theta)
 
             odom_quat = tf.transformations.quaternion_from_euler(0,0,self.theta)
@@ -241,8 +262,6 @@ class Controller:
 
             print("\n")
 
-
-
     def odom_msg_init(self,v,w,odom_quat):
         self.odom = Odometry()
         self.odom.header.stamp = self.current_time
@@ -254,22 +273,23 @@ class Controller:
         self.odom.twist.twist = Twist(Vector3(v,0,0), Vector3(0,0,w))
         
 
+'''
+Main process implementation
 
-         
+Init:   ros node
+        Controller object
+        rate val = 5 hz
 
+Loop:   update pose
+        publish topics
+'''
 if __name__ == '__main__':
-    rospy.init_node('pal_controller_node', anonymous=True)
-    
+    rospy.init_node('pal_controller_node', anonymous=True)    
     pal_control = Controller()
-   
     rate = rospy.Rate(5)
-    
     while not pal_control.ctrl_c:
-       
        pal_control.update_pose()
-       
        pal_control.publish()
-       
        rate.sleep()
 
     #rospy.spin()
