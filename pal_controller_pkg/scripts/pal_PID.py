@@ -27,7 +27,7 @@ class PID(object):
         self.derivative_error = (self.error-self.last_error)/time_interval
         self.last_error = self.error
         v_output = self.kp*self.error + self.ki*self.integral_error + self.kd*self.derivative_error
-        self.output = self.map_range(v_output,5,11,0,255)
+        self.output = int(self.map_range(v_output,4,11,0,255))
         if self.output >= MAX_PWM:
             self.output = MAX_PWM
         elif self.output <= MIN_PWM:

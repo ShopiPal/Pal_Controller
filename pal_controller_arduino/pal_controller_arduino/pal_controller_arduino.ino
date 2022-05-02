@@ -33,7 +33,7 @@ uint8_t currentSensor = 0;          // Keeps track of which sensor is active.
  
 unsigned long _timerStart = 0;
  
-int LOOPING = 10 ; //Loop for every 80 milliseconds.
+int LOOPING = 10 ; //Loop for every 10 milliseconds.
  
 uint8_t oldSensorReading[SONAR_NUM];    //Store last valid value of the sensors.
 
@@ -182,10 +182,16 @@ boolean Direction_right = true;
 // Range of 65,535
 const int encoder_minimum = -32768;
 const int encoder_maximum = 32767;
- 
+
+//last and current ticks init
+int encoder_right_current_ticks = 0;
+int encoder_right_last_ticks = 0;
+
 // Keep track of the number of wheel ticks
 std_msgs::Int16 right_wheel_tick_count;
+std_msgs::Int16 encoder_right_delta;
 ros::Publisher rightPub("/encoder_right_ticks", &right_wheel_tick_count);
+ros::Publisher right_encoder_delta_Pub("/encoder_right_delta",&encoder_right_delta);
  
 std_msgs::Int16 left_wheel_tick_count;
 ros::Publisher leftPub("/encoder_left_ticks", &left_wheel_tick_count);
@@ -279,7 +285,17 @@ void left_wheel_tick() {
     }   
   }
 }
- 
+
+// calc delta ticks
+int calc_ticks(int current_ticks ,int last_ticks) {
+  if (((current_ticks>0)&&(last_ticks<0))&&(current_ticks - last_ticks)> encoder_maximum) {  //passing Reverse from min to max
+            return ((current_ticks - encoder_maximum)+(encoder_minimum-last_ticks));
+  }  else if (((current_ticks<0)&&(last_ticks>0))&&(current_ticks - last_ticks)<encoder_minimum) {    //passing Forward from max to min
+            return ((current_ticks - encoder_minimum)+(encoder_maximum-last_ticks));
+  }  else {
+            return current_ticks - last_ticks ;
+  }
+}
 /////////////////////// Pwm subscribing ////////////////////////////
 
 void set_pwm_right(const std_msgs::Int16& right_pwm_out){
@@ -367,6 +383,7 @@ void setup() {
   nh.getHardware()->setBaud(500000); ///changed from 57600
   nh.initNode();
   nh.advertise(rightPub);
+  nh.advertise(right_encoder_delta_Pub);
   nh.advertise(leftPub);
   nh.subscribe(subLeftPwm);
   nh.subscribe(subRightPwm);
@@ -432,8 +449,13 @@ void loop() {
     
  
     // Publish tick counts to topics
-    leftPub.publish( &left_wheel_tick_count );
+    leftPub.publish( &left_wheel_tick_count ); 
     rightPub.publish( &right_wheel_tick_count );
+
+    encoder_right_current_ticks = right_wheel_tick_count.data;
+    encoder_right_delta.data = calc_ticks(encoder_right_current_ticks ,encoder_right_last_ticks);
+    right_encoder_delta_Pub.publish( &encoder_right_delta);
+    encoder_right_last_ticks = encoder_right_current_ticks;
  
      
  

@@ -51,8 +51,8 @@ class Controller:
         self.cmd_vel_sub = rospy.Subscriber("/cmd_vel",Twist,self.control_vel_callback)
         self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 1000)
 
-
-
+        self.right_encoder_delta_sub = rospy.Subscriber("/encoder_right_delta",Int16,self.right_encoder_delta_callback)
+        
         self.vr_current_publisher = rospy.Publisher("/velocity/vr_current",Float64,queue_size=1000)
         self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float64,queue_size=1000)
         ## init services
@@ -83,6 +83,7 @@ class Controller:
         self.current_right_encoder_value = 0
         self.rwheel_rpm = Float64()
         self.rwheel_rpm.data = 0
+        self.encoder_right_delta = 0
 
         # init kinematics parameters
         self.R = 0.125/2    
@@ -106,7 +107,7 @@ class Controller:
         rospy.on_shutdown(self.shutdownhook)
 
         ## PID init
-        self.pal_control = PID(8 , 2 , 4)
+        self.pal_control = PID(8 , 10 , 1)
         self.vr_target=0
        # self.update_pose()
 
@@ -119,7 +120,7 @@ class Controller:
         ## calculate cmd_motors_vels from a given cmd_vel and insert to the pid controller for pwm output
         self.cmd_vel = msg
         self.vr_target = self.cmd_vel.linear.x
-        #self.pwm_left_out.data =  palPID(.....)
+        
             
         
     
@@ -182,6 +183,9 @@ class Controller:
 
         self.pwm_left_out.data = 0
         self.pwm_right_out.data = 0
+    
+    def right_encoder_delta_callback(self,msg):
+        self.encoder_right_delta = msg.data
 
     def leftEncoder_callback(self,msg):
         self.current_left_encoder_value = msg.data
@@ -208,7 +212,8 @@ class Controller:
              ## calc encoder right ticks
             current_rticks = self.current_right_encoder_value
             last_rticks = self.last_right_encoder_value
-            delta_rticks =  self.calc_ticks(current_rticks,last_rticks)
+            delta_rticks = self.encoder_right_delta
+            #delta_rticks =  self.calc_ticks(current_rticks,last_rticks)
             rospy.loginfo("right delta ticks [ticks] = %s" , delta_rticks)
 
             ## calc distance of wheels movment
@@ -223,7 +228,7 @@ class Controller:
             self.current_time = rospy.Time.now()
             self.dt = (self.current_time - self.last_time).to_sec()
             rospy.loginfo("dt [s] = %s" , self.dt)
-
+            
             ## calc whells velocities
             self.vl_current = dl/self.dt
             self.vr_current = dr/self.dt       
@@ -299,7 +304,7 @@ Loop:   update pose
 if __name__ == '__main__':
     rospy.init_node('pal_controller_node', anonymous=True)    
     pal_control = Controller()
-    rate = rospy.Rate(5)
+    rate = rospy.Rate(8)
     while not pal_control.ctrl_c:
        pal_control.update_pose()
        pal_control.publish()
