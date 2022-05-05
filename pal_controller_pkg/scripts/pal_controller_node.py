@@ -53,8 +53,8 @@ class Controller:
 
         #self.distance_center_sub = rospy.Subscriber("/distance/center",Float32,self.distance_center_callback)
 
-        self.vr_current_raw_sub = rospy.Subscriber("/velocity/vr_current_raw",Float32,self.vr_current_raw_callback) # will be commented
-        self.vr_current_filter_sub = rospy.Subscriber("/velocity/vr_current_filter",Float32,self.vr_current_filter_callback)
+        self.vr_current_raw_sub = rospy.Subscriber("/velocity/vr_current/raw",Float32,self.vr_current_raw_callback) # will be commented
+        self.vr_current_filter_sub = rospy.Subscriber("/velocity/vr_current/filter",Float32,self.vr_current_filter_callback)
 
 
         self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float32,queue_size=1000) # will be commented
@@ -107,7 +107,7 @@ class Controller:
 
         ## shutdownhook process
         self.ctrl_c = False
-        rospy.on_shutdown(self.shutdownhook)
+        rospy.on_shutdown(self.shutdownhook())
 
         ## PID init
         self.pal_control = PID(8 , 10 , 1)

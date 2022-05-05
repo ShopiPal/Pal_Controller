@@ -329,15 +329,15 @@ int calc_ticks(int current_ticks ,int last_ticks) {
 }
 
 /////////////////////// velocity filter functions////////////////////////////
-float LPF(float prev_vr , float vr_current_raw)
+float LPF(float prev_vr , float vr_current_raw){
   return lambda[0]*prev_vr[0] + lambda[1]*prev_vr[1] + lambda[2]*prev_vr[2] + (1 - lambda[0] -lambda[1] -lambda[2])*vr_current_raw;
-
-float prev_v_update(float prev_v , float v_current_raw)
+}
+float prev_v_update(float prev_v , float v_current_filter){
   prev_v[2] = prev_v[1];
   prev_v[1] = prev_v[0];
-  prev_v[0] = v_current_raw ; 
+  prev_v[0] = v_current_filter ; 
   return prev_v ;
-
+}
 /////////////////////// Pwm subscribing ////////////////////////////
 
 void set_pwm_right(const std_msgs::Int16& right_pwm_out){
