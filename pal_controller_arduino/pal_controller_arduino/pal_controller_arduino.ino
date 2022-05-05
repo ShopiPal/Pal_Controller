@@ -210,18 +210,18 @@ std_msgs::Int16 left_wheel_tick_count;
 ros::Publisher leftPub("/encoder_left_ticks", &left_wheel_tick_count);
 
 //geometric params
-const int N = 480
-float R = 125/2
+const int N = 480;
+float R = 125/2;
 //const float Pi = 3.14159;
 
 // filter params
-float lambda[3] = {0.3,0.2,0.1}
+float lambda[3] = {0.3,0.2,0.1};
 
 // right init params
-float dr = 0 // same for left side
-float vr_current_filter = 0
-float prev_vr[3] = {}
-int encoder_right_delta = 0
+float dr = 0 ;// same for left side
+float vr_current_filter = 0;
+float prev_vr[3] = {};
+int encoder_right_delta = 0;
 
 // Time interval for measurements in milliseconds
 long previousMillis = 0;
@@ -474,8 +474,8 @@ void loop() {
   
     
     // Publish tick counts to topics
-    leftPub.publish( &left_wheel_tick_count ); 
-    rightPub.publish( &right_wheel_tick_count );
+    leftPub.publish( &left_wheel_tick_count); 
+    rightPub.publish( &right_wheel_tick_count);
 
     //calculate velocities and publish
     encoder_right_current_ticks = right_wheel_tick_count.data; //same for left
@@ -486,7 +486,7 @@ void loop() {
     dt =  currentMillis - previousMillis;
 
     vr_current_raw.data = dr/dt;
-    vr_current_filter.data = LPF(prev_vr , vr_current_raw.data)
+    vr_current_filter.data = LPF(prev_vr , vr_current_raw.data);
 
 
     vr_current_raw_Pub.publish( &vr_current_raw);

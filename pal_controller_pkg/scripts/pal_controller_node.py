@@ -214,7 +214,7 @@ class Controller:
             delta_lticks = self.calc_ticks(current_lticks,last_lticks)
             rospy.loginfo("left delta ticks [ticks] = %s" , delta_lticks)
 
-             ## calc encoder right ticks
+            ## calc encoder right ticks
             current_rticks = self.current_right_encoder_value
             last_rticks = self.last_right_encoder_value
             delta_rticks =  self.calc_ticks(current_rticks,last_rticks)
