@@ -167,7 +167,7 @@ ros::Publisher pub_range_front_left("/sonar_front_left", &range_front_left);
 
 
 
-////////////////// Tick Data Publishing Variables and Constants ///////////////
+////////////////// Tick & velocities & distance Data Publishing Variables and Constants ///////////////
  
 // Encoder output to Arduino Interrupt pin. Tracks the tick count.
 #define ENC_IN_LEFT_A 18 //white
@@ -198,16 +198,23 @@ ros::Publisher rightPub("/encoder_right_ticks", &right_wheel_tick_count);
 
 // publisher of velocity raw data
 std_msgs::Float32 vr_current_raw; //same for left
-ros::Publisher vr_current_raw_Pub("velocities/vr_current_raw",&vr_current_raw); //same for left
+ros::Publisher vr_current_raw_Pub("velocity/vr_current_raw",&vr_current_raw); //same for left
 
 // publisher of velocity filter data
 std_msgs::Float32 vr_current_filter; //same for left
-ros::Publisher vr_current_filter_Pub("velocities/vr_current_filter",&vr_current_filter); //same for left
+ros::Publisher vr_current_filter_Pub("velocity/vr_current_filter",&vr_current_filter); //same for left
 
 //left
 // Keep track of the number of wheel ticks
 std_msgs::Int16 left_wheel_tick_count;
 ros::Publisher leftPub("/encoder_left_ticks", &left_wheel_tick_count);
+
+
+// distance center
+//std_msgs::Flaot32 distance_center;
+//ros::Publisher distance_center_Pub("/distance/center", &distance_center);
+
+
 
 //geometric params
 const int N = 480;
@@ -420,6 +427,7 @@ void setup() {
   nh.advertise(rightPub);
   nh.advertise(vr_current_raw_Pub);
   nh.advertise(vr_current_filter_Pub);
+  //nh.advertise(distance_center_Pub);
   nh.advertise(leftPub);
   nh.subscribe(subLeftPwm);
   nh.subscribe(subRightPwm);
@@ -482,6 +490,10 @@ void loop() {
     encoder_right_delta = calc_ticks(encoder_right_current_ticks ,encoder_right_last_ticks); //same for left
 
     dr =  (2*Pi*R*encoder_right_delta)/N; //same for left
+
+    //dc = (dl+dr)/2
+    //distance_center.data = dc
+    //distance_center_Pub.publish( &distance_center)
 
     dt =  currentMillis - previousMillis;
 

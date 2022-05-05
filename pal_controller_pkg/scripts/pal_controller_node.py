@@ -46,16 +46,18 @@ class Controller:
         ## init publisher and subscribers
         self.left_pwm_publisher = rospy.Publisher("/left_motor_pwm",Int16,queue_size=1000) 
         self.right_pwm_publisher = rospy.Publisher("/right_motor_pwm",Int16,queue_size=1000) 
-        self.left_encoder_sub = rospy.Subscriber("/encoder_left_ticks",Int16,self.leftEncoder_callback)
-        self.right_encoder_sub = rospy.Subscriber("/encoder_right_ticks",Int16,self.rightEncoder_callback)
+        self.left_encoder_sub = rospy.Subscriber("/encoder_left_ticks",Int16,self.leftEncoder_callback) # will be commented
+        self.right_encoder_sub = rospy.Subscriber("/encoder_right_ticks",Int16,self.rightEncoder_callback) # will be commented
         self.cmd_vel_sub = rospy.Subscriber("/cmd_vel",Twist,self.control_vel_callback)
         self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 1000)
 
-        self.vr_current_raw_sub = rospy.Subscriber("/velocity/vr_current_raw",Float32,self.vr_current_raw_callback)
+        #self.distance_center_sub = rospy.Subscriber("/distance/center",Float32,self.distance_center_callback)
+
+        self.vr_current_raw_sub = rospy.Subscriber("/velocity/vr_current_raw",Float32,self.vr_current_raw_callback) # will be commented
         self.vr_current_filter_sub = rospy.Subscriber("/velocity/vr_current_filter",Float32,self.vr_current_filter_callback)
 
 
-        self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float32,queue_size=1000)
+        self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float32,queue_size=1000) # will be commented
         ## init services
         self.set_pwm_service = rospy.Service('motors/set_pwm', PwmVal , self.set_pwm_callback)
         self.motors_stop_service = rospy.Service('motors/stop', SetBool , self.stop_callback)
@@ -184,7 +186,8 @@ class Controller:
         self.pwm_left_out.data = 0
         self.pwm_right_out.data = 0
 
-
+    #def dc_center_callback(self,msg):
+    #    self.dc = msg.data
 
     def vr_current_raw_callback(self,msg):
         self.vr_current_raw = msg.data
@@ -242,6 +245,9 @@ class Controller:
             rospy.loginfo("angular velocity [deg/s] = %s" , w)
 
             ## update movments relate to axises
+            #delta_x = self.dc * cos(self.theta)
+            #delta_y = self.dc * sin(self.theta)
+            
             delta_x = dc * cos(self.theta)
             delta_y = dc * sin(self.theta)
             delta_theta = w
