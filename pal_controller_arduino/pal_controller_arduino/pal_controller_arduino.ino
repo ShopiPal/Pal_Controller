@@ -197,10 +197,32 @@ ros::Publisher rightPub("/encoder_right_ticks", &right_wheel_tick_count);
 ros::Publisher encoder_right_delta_raw_Pub("/encoder_right_delta/raw",&encoder_right_delta_raw);
 ros::Publisher encoder_right_delta_filter_Pub("/encoder_right_delta/filter",&encoder_right_delta_filter);
 
+// publisher of velocity filter data
+std_msgs::Float32 vr_current_filter; //same for left
+ros::Publisher vr_current_filter_Pub("velocity/vr_current/filter",&vr_current_filter); //same for left
+// publisher of velocity raw data
+std_msgs::Float32 vr_current_raw; //same for left
+ros::Publisher vr_current_raw_Pub("velocity/vr_current/raw",&vr_current_raw); //same for left
+
 //left encoder topics 
 std_msgs::Int16 left_wheel_tick_count;
 ros::Publisher leftPub("/encoder_left_ticks", &left_wheel_tick_count);
  
+
+
+//geometric params
+const int N = 480;
+float R = 125/2;
+//const float Pi = 3.14159;
+
+// filter params
+float lambda[3] = {0.3,0.2,0.1};
+
+// right init params
+float dr = 0 ;// same for left side
+float prev_right_delta_ticks[3] = {};
+
+
 // Time interval for measurements in milliseconds
 const int interval = 100;
 long previousMillis = 0;
@@ -261,10 +283,8 @@ void right_wheel_tick() {
 }
  
 // Increment the number of ticks
-void left_wheel_tick() {
-   
-  // Read the value for the encoder for the left wheel
-  int val = digitalRead(ENC_IN_LEFT_B);
+void left_w
+ digitalRead(ENC_IN_LEFT_B);
  
   if (val == LOW) {
     Direction_left = true; // Reverse
@@ -301,12 +321,17 @@ int calc_ticks(int current_ticks ,int last_ticks) {
             return current_ticks - last_ticks ;
   }
 }
+/////////////////////// encoder filter functions////////////////////////////
+float LPF(float prev_delta_ticks , float current_delta_ticks){
+  return lambda[0]*prev_delta_ticks[0] + lambda[1]*prev_delta_ticks[1] + lambda[2]*prev_delta_ticks[2] + (1 - lambda[0] -lambda[1] -lambda[2])*current_delta_ticks;
+}
 
-//filter delta ticks with LPF
-
-
-// update prev array of delta ticks
-
+float update_delta_ticks(float prev_delta_ticks , float current_delta_ticks_filter){
+  prev_delta_ticks[2] = prev_delta_ticks[1];
+  prev_delta_ticks[1] = prev_delta_ticks[0];
+  prev_delta_ticks[0] = current_delta_ticks_filter ; 
+  return prev_delta_ticks ;
+}
 
 /////////////////////// Pwm subscribing ////////////////////////////
 
@@ -397,6 +422,9 @@ void setup() {
   nh.advertise(rightPub);
   nh.advertise(encoder_right_delta_raw_Pub);
   nh.advertise(encoder_right_delta_filter_Pub);
+  nh.advertise(vr_current_filter_Pub);
+  nh.advertise(vr_current_raw_Pub);
+
 
   nh.advertise(leftPub);
   nh.subscribe(subLeftPwm);
@@ -412,10 +440,9 @@ void setup() {
 void loop() {
 
   unsigned long currentMillis = millis();
-  //if (currentMillis-previousMillis >= 20){
-     
+  if (currentMillis-previousMillis >= 20){
   
-  if (isTimeForLoop(LOOPING)) {      // ---> need to check
+  //if (isTimeForLoop(LOOPING)) {      // ---> need to check
     sensorCycle();
     oneSensorCycle();
     applyKF(); //with filtering
@@ -468,17 +495,28 @@ void loop() {
 
     encoder_right_current_ticks = right_wheel_tick_count.data;
     encoder_right_delta_raw.data = calc_ticks(encoder_right_current_ticks ,encoder_right_last_ticks);
+    
+    encoder_right_delta_filter.data = LPF(prev_right_delta_ticks,(float) encoder_right_delta_raw.data);
+
+    
+    dr_raw =  (2*PI*R*encoder_right_delta_raw.data)/N; //same for left
+    dr_filter =  (2*PI*R*encoder_right_delta_filter.data)/N; //same for left
+
+    dt =  currentMillis - previousMillis;
+
+    vr_current_raw.data = dr_raw/dt;
+    vr_current_filter.data = dr_filter/dt;
+
     encoder_right_delta_raw_Pub.publish( &encoder_right_delta_raw);
+    encoder_right_delta_filter_Pub.publish( &encoder_right_delta_filter);
+
+    vr_current_raw_Pub.publish( &vr_current_raw);
+    vr_current_filter_Pub.publish( &vr_current_filter);
     
-    encoder_right_delta_filter.data = LPF(prev_right_delta_ticks,(float) encoder_right_delta_raw.data)
-    
-    prev_right_delta_ticks = update_delta_ticks(prev_right_delta_ticks , encoder_right_delta_filter.data)
+    prev_right_delta_ticks = update_delta_ticks(prev_right_delta_ticks , encoder_right_delta_filter.data);
     encoder_right_last_ticks = encoder_right_current_ticks;
 
- 
-     
- 
-     
+
     // Stop the car if there are no pwm messages in the last 1 sec
     if((millis()/1000) - left_lastPwmReceived > 2) {   ////// changed to 2 from 1 sec
       pwmLeftReq = 0;
@@ -488,8 +526,8 @@ void loop() {
       pwmRightReq = 0;
       analogWrite(pwmB, 0);
     }
-    startTimer();
-    previousMillis = currentMillis+10;
+    //startTimer();
+    previousMillis = currentMillis;
     
   } 
 

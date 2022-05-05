@@ -3,8 +3,7 @@
 # import libraries & ros plugins & msgs
 import rospy
 from math import pi , cos , sin 
-from std_msgs.msg import Float64
-from std_msgs.msg import Int16
+from std_msgs.msg import Float64 ,Float32 , Int16
 from pal_controller_pkg.srv import PwmVal , PwmValResponse
 from std_srvs.srv import SetBool , SetBoolResponse
 from geometry_msgs.msg import Pose ,Twist , Point , Quaternion , Vector3
@@ -46,10 +45,12 @@ class Controller:
         self.cmd_vel_sub = rospy.Subscriber("/cmd_vel",Twist,self.control_vel_callback)
         self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 1000)
 
-        self.right_encoder_delta_sub = rospy.Subscriber("/encoder_right_delta",Int16,self.right_encoder_delta_callback)
-        
-        self.vr_current_publisher = rospy.Publisher("/velocity/vr_current",Float64,queue_size=1000)
-        self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float64,queue_size=1000)
+        self.encoder_right_delta_raw_sub = rospy.Subscriber("/encoder_right_delta/raw",Float32,self.encoder_right_delta_raw_callback)
+        self.encoder_right_delta_filter_sub = rospy.Subscriber("/encoder_right_delta/filter",Float32,self.encoder_right_delta_filter_callback)
+
+        self.vr_current_filter_sub = rospy.Subscriber("/velocity/vr_current/filter",Float32,self.vr_current_filter_callback)
+        self.vr_current_raw_sub = rospy.Publisher("/velocity/vr_current/raw",Float32,self.vr_current_raw_callback)
+        self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float32,queue_size=1000)
         ## init services
         self.set_pwm_service = rospy.Service('motors/set_pwm', PwmVal , self.set_pwm_callback)
         self.motors_stop_service = rospy.Service('motors/stop', SetBool , self.stop_callback)
@@ -68,17 +69,15 @@ class Controller:
         self.pwm_left_out.data = 0     ## for now insert here to set velocity     
         self.current_left_encoder_value = 0
         self.last_left_encoder_value = 0
-        self.lwheel_rpm = Float64()
-        self.lwheel_rpm.data = 0
+
 
         ## right params
         self.pwm_right_out =  Int16()
         self.pwm_right_out.data = 0      ## for now insert here to set velocity
         self.last_right_encoder_value = 0
         self.current_right_encoder_value = 0
-        self.rwheel_rpm = Float64()
-        self.rwheel_rpm.data = 0
-        self.encoder_right_delta = 0
+        self.encoder_right_delta_raw = 0
+        self.encoder_right_delta_filter = 0
 
         # init kinematics parameters
         self.R = 0.125/2    
@@ -89,7 +88,8 @@ class Controller:
         self.theta = 0
 
         ## init cmd_vel
-        self.vr_current = 0
+        self.vr_current_filter = 0
+        self.vr_current_raw = 0
         self.vl_current = 0
         self.cmd_vel = Twist()
 
@@ -179,8 +179,18 @@ class Controller:
         self.pwm_left_out.data = 0
         self.pwm_right_out.data = 0
     
-    def right_encoder_delta_callback(self,msg):
-        self.encoder_right_delta = msg.data
+    def encoder_right_delta_raw_callback(self,msg):
+        self.encoder_right_delta_raw = msg.data
+
+    def encoder_right_delta_filter_callback(self,msg):
+        self.encoder_right_delta_filter = msg.data
+    
+    def vr_current_filter_callback(self,msg):
+        self.vr_current_filter = msg.data
+    
+    def vr_current_raw_callback(self,msg):
+        self.vr_current_raw = msg.data
+
 
     def leftEncoder_callback(self,msg):
         self.current_left_encoder_value = msg.data
@@ -205,16 +215,19 @@ class Controller:
             rospy.loginfo("left delta ticks [ticks] = %s" , delta_lticks)
 
              ## calc encoder right ticks
-            current_rticks = self.current_right_encoder_value
-            last_rticks = self.last_right_encoder_value
-            delta_rticks = self.encoder_right_delta
+            #current_rticks = self.current_right_encoder_value
+            #last_rticks = self.last_right_encoder_value
             #delta_rticks =  self.calc_ticks(current_rticks,last_rticks)
-            rospy.loginfo("right delta ticks [ticks] = %s" , delta_rticks)
+            delta_rticks_raw = self.encoder_right_delta_raw
+            delta_rticks_filter = self.encoder_right_delta_filter
+            rospy.loginfo("right delta ticks raw [ticks] = %s" , delta_rticks_raw)
+            rospy.loginfo("right delta ticks filter [ticks] = %s" , delta_rticks_filter)
+
 
             ## calc distance of wheels movment
             dl =  2*pi*self.R*delta_lticks/self.N 
             rospy.loginfo("left wheel distance [m] = %s" ,dl)
-            dr = 2*pi*self.R*delta_rticks/self.N
+            dr = 2*pi*self.R*delta_rticks_filter/self.N
             rospy.loginfo("right wheel distance [m] = %s" ,dr)
             dc = (dl + dr)/2
             rospy.loginfo("total wheel distance [m] = %s" ,dc)
@@ -226,11 +239,12 @@ class Controller:
             
             ## calc whells velocities
             self.vl_current = dl/self.dt
-            self.vr_current = dr/self.dt       
-            v =  (self.vl_current + self.vr_current )/2 # linear
-            rospy.loginfo("right linear velocity [m/s] = %s" , self.vr_current)
+            v =  (self.vl_current + self.vr_current_filter )/2 # linear
+            rospy.loginfo("filter right linear velocity [m/s] = %s" , self.vr_current_filter)
+            rospy.loginfo("raw right linear velocity [m/s] = %s" , self.vr_current_filter)
+
             rospy.loginfo("linear velocity [m/s] = %s" , v)
-            w = (self.vr_current  - self.vl_current)/self.L # angular
+            w = (self.vr_current_filter  - self.vl_current)/self.L # angular
             rospy.loginfo("angular velocity [deg/s] = %s" , w)
 
             ## update movments relate to axises
@@ -249,11 +263,7 @@ class Controller:
             rospy.loginfo("theta [deg] = %s" , self.theta)
 
             odom_quat = tf.transformations.quaternion_from_euler(0,0,self.theta)
-            #quaternion = Quaternion()
-		    #quaternion.x = 0 
-		    #quaternion.y = 0
-		    #quaternion.z = sin(self.theta / 2.0)
-		    #quaternion.w = cos(self.theta / 2.0)
+
 
             # publish transform over tf
             self.odom_broadcaster.sendTransform(
