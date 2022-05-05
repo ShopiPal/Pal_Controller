@@ -100,8 +100,8 @@ class Controller:
 
         ## filter params
         self.vr_current_filter = 0
-        self.prev_vr = [0 , 0 , 0]
-        self._lambda = [0.3,0.2,0.1] #filter coefficients of previous measurments
+        self.prev_vr = [0 , 0 ]
+        self._lambda = [0.4,0.2] #filter coefficients of previous measurments
 
 
         ## init odom and tf
@@ -208,10 +208,9 @@ class Controller:
 
     def LPF(self, prev_v , v_current_raw):
         total_lambda = sum(self._lambda)
-        return self._lambda[0]*prev_v[0] + self._lambda[1]*prev_v[1] + self._lambda[2]*prev_v[2] + (1 - total_lambda)*v_current_raw
+        return self._lambda[0]*prev_v[0] + self._lambda[1]*prev_v[1] + (1 - total_lambda)*v_current_raw
 
-    def update_prev(self, prev_v , v_current_filter)
-        prev_v[2] = prev_v[1]
+    def update_prev(self, prev_v , v_current_filter):
         prev_v[1] = prev_v[0]
         prev_v[0] = v_current_filter
         return prev_v
