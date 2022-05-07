@@ -45,7 +45,7 @@ class Controller:
         self.cmd_vel_sub = rospy.Subscriber("/cmd_vel",Twist,self.control_vel_callback)
         self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 1000)
 
-        self.encoder_right_delta_raw_sub = rospy.Subscriber("/encoder_right_delta/raw",Float32,self.encoder_right_delta_raw_callback)
+        self.encoder_right_delta_raw_sub = rospy.Subscriber("/encoder_right_delta/raw",Int16,self.encoder_right_delta_raw_callback)
         self.encoder_right_delta_filter_sub = rospy.Subscriber("/encoder_right_delta/filter",Float32,self.encoder_right_delta_filter_callback)
 
         self.vr_current_filter_sub = rospy.Subscriber("/velocity/vr_current/filter",Float32,self.vr_current_filter_callback)
@@ -99,7 +99,7 @@ class Controller:
 
         ## shutdownhook process
         self.ctrl_c = False
-        rospy.on_shutdown(self.shutdownhook())
+        rospy.on_shutdown(self.shutdownhook)
 
         ## PID init
         self.pal_control = PID(8 , 10 , 1) ## need to tune
@@ -127,7 +127,7 @@ class Controller:
         self.right_pwm_publisher.publish(self.pwm_right_out)
         # publish velocities for test only
         self.vr_target_publisher.publish(self.vr_target)
-        self.vr_current_publisher.publish(self.vr_current)
+        #self.vr_current_publisher.publish(self.vr_current)
         # publish odom
         self.odom_publisher.publish(self.odom)
 
@@ -307,7 +307,7 @@ Loop:   update pose
 if __name__ == '__main__':
     rospy.init_node('pal_controller_node', anonymous=True)    
     pal_control = Controller()
-    rate = rospy.Rate(8)
+    rate = rospy.Rate(5)
     while not pal_control.ctrl_c:
        pal_control.update_pose()
        pal_control.publish()
