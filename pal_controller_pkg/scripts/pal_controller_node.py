@@ -94,15 +94,16 @@ class Controller:
         self.theta = 0
 
         ## init cmd_vel
-        self.vr_current = 0
+        self.vr_current_raw = 0
         self.vl_current = 0
         self.cmd_vel = Twist()
 
         ## filter params
         self.vr_current_filter = 0
         self.prev_vr = [0 , 0 ]
-        self._lambda = [0.4,0.2] #filter coefficients of previous measurments
-
+        #self.prev_vr = [0 ] # first order
+        self._lambda = [0.5,0.2] #filter coefficients of previous measurments
+        #self._lambda = [0.8]
 
         ## init odom and tf
         self.odom = Odometry()
@@ -110,10 +111,10 @@ class Controller:
 
         ## shutdownhook process
         self.ctrl_c = False
-        rospy.on_shutdown(self.shutdownhook())
+        rospy.on_shutdown(self.shutdownhook)
 
         ## PID init
-        self.pal_control = PID(8 , 2 , 4)
+        self.pal_control = PID(20 , 5 , 0.5)
         self.vr_target=0
        # self.update_pose()
 
@@ -180,7 +181,7 @@ class Controller:
         last_time = rospy.Time.now()
         current_time = rospy.Time.now()
         dt  = (current_time - last_time).to_sec()
-        rate = rospy.Rate(10)
+        rate = rospy.Rate(20)
         while(dt < time_relation): ## need to publish ? 
             dt  = (current_time - last_time).to_sec()
             self.pwm_left_out.data = ((-pwm_left*dt)/time_relation) + pwm_left
@@ -209,6 +210,7 @@ class Controller:
     def LPF(self, prev_v , v_current_raw):
         total_lambda = sum(self._lambda)
         return self._lambda[0]*prev_v[0] + self._lambda[1]*prev_v[1] + (1 - total_lambda)*v_current_raw
+        #return self._lambda[0]*prev_v[0]  + (1 - total_lambda)*v_current_raw
 
     def update_prev(self, prev_v , v_current_filter):
         prev_v[1] = prev_v[0]
@@ -288,7 +290,7 @@ class Controller:
             self.odom_msg_init(v,w,odom_quat)
 
             ## set output pwm from the pid            
-            #self.pwm_right_out.data = self.pal_control.compute(self.vr_current,self.vr_target, self.dt)
+            self.pwm_right_out.data = self.pal_control.compute(self.vr_current_filter,self.vr_target, self.dt)
             print("\n")
 
             # reset time and encoders current+last variables
@@ -305,7 +307,7 @@ class Controller:
         self.odom.child_frame_id = "base_link"
         # set the position and orientation
         self.odom.pose.pose = Pose(Point(self.x,self.y,0) , Quaternion(*odom_quat))
-        # set velocity
+        # setself._lambda = [0.6,0.3] velocity
         self.odom.twist.twist = Twist(Vector3(v,0,0), Vector3(0,0,w))
         
 
@@ -322,7 +324,7 @@ Loop:   update pose
 if __name__ == '__main__':
     rospy.init_node('pal_controller_node', anonymous=True)    
     pal_control = Controller()
-    rate = rospy.Rate(10)
+    rate = rospy.Rate(5)
     while not pal_control.ctrl_c:
        pal_control.update_pose()
        pal_control.publish()

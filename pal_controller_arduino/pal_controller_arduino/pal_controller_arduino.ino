@@ -381,10 +381,10 @@ void setup() {
 void loop() {
 
   unsigned long currentMillis = millis();
-  //if (currentMillis-previousMillis >= 20){
+  if (currentMillis-previousMillis >= 20){
      
   
-  if (isTimeForLoop(LOOPING)) {      // ---> need to check
+  //if (isTimeForLoop(LOOPING)) {      // ---> need to check
     sensorCycle();
     oneSensorCycle();
     applyKF(); //with filtering
@@ -447,7 +447,7 @@ void loop() {
       pwmRightReq = 0;
       analogWrite(pwmB, 0);
     }
-    startTimer();
+    //startTimer();
     previousMillis = currentMillis+10;
     
   } 
