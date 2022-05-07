@@ -52,10 +52,11 @@ class Controller:
         self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 1000)
 
 
-
         self.vr_current_raw_publisher = rospy.Publisher("/velocity/vr_current/raw",Float64,queue_size=1000)
         self.vr_current_filter_publisher = rospy.Publisher("/velocity/vr_current/filter",Float64,queue_size=1000)
-        self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float64,queue_size=1000)
+        self.vl_current_raw_publisher = rospy.Publisher("/velocity/vl_current/raw",Float64,queue_size=1000)
+        self.vl_current_filter_publisher = rospy.Publisher("/velocity/vl_current/filter",Float64,queue_size=1000)
+        self.v_target_publisher = rospy.Publisher("/velocity/v_target",Float64,queue_size=1000)
         ## init services
         self.set_pwm_service = rospy.Service('motors/set_pwm', PwmVal , self.set_pwm_callback)
         self.motors_stop_service = rospy.Service('motors/stop', SetBool , self.stop_callback)
@@ -95,12 +96,14 @@ class Controller:
 
         ## init cmd_vel
         self.vr_current_raw = 0
-        self.vl_current = 0
+        self.vl_current_raw = 0
         self.cmd_vel = Twist()
 
         ## filter params
         self.vr_current_filter = 0
         self.prev_vr = [0 , 0 ]
+        self.vl_current_filter = 0
+        self.prev_vl = [0 , 0 ]
         #self.prev_vr = [0 ] # first order
         self._lambda = [0.5,0.2] #filter coefficients of previous measurments
         #self._lambda = [0.8]
@@ -115,7 +118,7 @@ class Controller:
 
         ## PID init
         self.pal_control = PID(20 , 5 , 0.5)
-        self.vr_target=0
+        self.v_target=0
        # self.update_pose()
 
     def shutdownhook(self):
@@ -126,7 +129,7 @@ class Controller:
     def control_vel_callback(self,msg):
         ## calculate cmd_motors_vels from a given cmd_vel and insert to the pid controller for pwm output
         self.cmd_vel = msg
-        self.vr_target = self.cmd_vel.linear.x
+        self.v_target = self.cmd_vel.linear.x
         #self.pwm_left_out.data =  palPID(.....)
             
         
@@ -138,9 +141,11 @@ class Controller:
         self.left_pwm_publisher.publish(self.pwm_left_out)
         self.right_pwm_publisher.publish(self.pwm_right_out)
         # publish velocities for test only
-        self.vr_target_publisher.publish(self.vr_target)
+        self.v_target_publisher.publish(self.v_target)
         self.vr_current_raw_publisher.publish(self.vr_current_raw)
         self.vr_current_filter_publisher.publish(self.vr_current_filter)
+        self.vl_current_raw_publisher.publish(self.vl_current_raw)
+        self.vl_current_filter_publisher.publish(self.vl_current_filter)
         # publish odom
         self.odom_publisher.publish(self.odom)
 
@@ -244,15 +249,15 @@ class Controller:
             rospy.loginfo("dt [s] = %s" , self.dt)
 
             ## calc whells velocities
-            self.vl_current = dl/self.dt
+            self.vl_current_raw = dl/self.dt
             self.vr_current_raw = dr/self.dt
             self.vr_current_filter = self.LPF(self.prev_vr,self.vr_current_raw)
-
-            v =  (self.vl_current + self.vr_current_filter )/2 # linear
+            self.vl_current_filter = self.LPF(self.prev_vl,self.vl_current_raw)
+            v =  (self.vl_current_filter + self.vr_current_filter )/2 # linear
             rospy.loginfo("vr_raw [m/s] = %s" , self.vr_current_raw)
             rospy.loginfo("vr_filter [m/s] = %s" , self.vr_current_filter)
             rospy.loginfo("linear velocity [m/s] = %s" , v)
-            w = (self.vr_current_filter  - self.vl_current)/self.L # angular
+            w = (self.vr_current_filter  - self.vl_current_filter)/self.L # angular
             rospy.loginfo("angular velocity [deg/s] = %s" , w)
 
             ## update movments relate to axises
@@ -290,7 +295,8 @@ class Controller:
             self.odom_msg_init(v,w,odom_quat)
 
             ## set output pwm from the pid            
-            self.pwm_right_out.data = self.pal_control.compute(self.vr_current_filter,self.vr_target, self.dt)
+            self.pwm_right_out.data = self.pal_control.compute(self.vr_current_filter,self.v_target, self.dt)
+            self.pwm_left_out.data = self.pal_control.compute(self.vl_current_filter,self.v_target, self.dt)
             print("\n")
 
             # reset time and encoders current+last variables
@@ -298,6 +304,7 @@ class Controller:
             self.last_left_encoder_value  = self.current_left_encoder_value
             self.last_right_encoder_value = self.current_right_encoder_value
 
+            self.prev_vl = self.update_prev(self.prev_vl, self.vl_current_filter)
             self.prev_vr = self.update_prev(self.prev_vr, self.vr_current_filter)
 
     def odom_msg_init(self,v,w,odom_quat):
