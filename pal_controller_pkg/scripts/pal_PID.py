@@ -18,7 +18,7 @@ class PID(object):
         self.output = 0
     
     def map_range(self, x, in_min, in_max, out_min, out_max):
-        return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
+        return int((x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min)
 
     def compute(self,current_speed,target_speed,time_interval=0.2):
         self.error = target_speed - current_speed
