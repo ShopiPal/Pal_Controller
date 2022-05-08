@@ -53,10 +53,10 @@ class Controller:
         self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 1000)
 
 
-        self.vr_current_raw_publisher = rospy.Publisher("/velocity/vr_current/raw",Float64,queue_size=1000)
-        self.vr_current_filter_publisher = rospy.Publisher("/velocity/vr_current/filter",Float64,queue_size=1000)
-        self.vl_current_raw_publisher = rospy.Publisher("/velocity/vl_current/raw",Float64,queue_size=1000)
-        self.vl_current_filter_publisher = rospy.Publisher("/velocity/vl_current/filter",Float64,queue_size=1000)
+        self.vr_current_raw_publisher = rospy.Publisher("/velocity/vr_current/raw",Float64,queue_size=100)
+        self.vr_current_filter_publisher = rospy.Publisher("/velocity/vr_current/filter",Float64,queue_size=100)
+        self.vl_current_raw_publisher = rospy.Publisher("/velocity/vl_current/raw",Float64,queue_size=100)
+        self.vl_current_filter_publisher = rospy.Publisher("/velocity/vl_current/filter",Float64,queue_size=100)
         self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float64,queue_size=1000)
         self.vl_target_publisher = rospy.Publisher("/velocity/vl_target",Float64,queue_size=1000)
         ## init services
@@ -109,7 +109,7 @@ class Controller:
         self.vl_current_filter = 0
         self.prev_vl = [0 , 0 ]
         #self.prev_vr = [0 ] # first order
-        self._lambda = [0.5,0.2] #filter coefficients of previous measurments
+        self._lambda = [0.5,0.25] #filter coefficients of previous measurments
         #self._lambda = [0.8]
 
         ## init odom and tf
@@ -137,8 +137,6 @@ class Controller:
         self.vr_target = (2*self.cmd_vel.linear.x + self.cmd_vel.angular.z * self.L)/2
         self.vl_target = (2*self.cmd_vel.linear.x - self.cmd_vel.angular.z * self.L)/2
 
-        #self.pwm_left_out.data =  palPID(.....)
-            
         
     
 
@@ -341,7 +339,6 @@ class Controller:
         self.odom.child_frame_id = "base_link"
         # set the position and orientation
         self.odom.pose.pose = Pose(Point(self.x,self.y,0) , Quaternion(*odom_quat))
-        # setself._lambda = [0.6,0.3] velocity
         self.odom.twist.twist = Twist(Vector3(v,0,0), Vector3(0,0,w))
         
 
@@ -358,7 +355,7 @@ Loop:   update pose
 if __name__ == '__main__':
     rospy.init_node('pal_controller_node', anonymous=True)    
     pal_control = Controller()
-    rate = rospy.Rate(5)
+    rate = rospy.Rate(10)
     while not pal_control.ctrl_c:
        pal_control.update_pose()
        pal_control.publish()

@@ -201,7 +201,7 @@ int pwmRightReq = 0;
 
 
  
-// Motor A connections -------------- TO DO --------------
+// Motor A connections 
 const int pwmA = 12 ; //white
 const int in1 = 11 ; // orange
 const int in2 = 10 ; // purple
@@ -381,7 +381,7 @@ void setup() {
 void loop() {
 
   unsigned long currentMillis = millis();
-  if (currentMillis-previousMillis >= 20){
+  if (currentMillis-previousMillis >= 10){
      
   
   //if (isTimeForLoop(LOOPING)) {      // ---> need to check
@@ -448,7 +448,7 @@ void loop() {
       analogWrite(pwmB, 0);
     }
     //startTimer();
-    previousMillis = currentMillis+10;
+    previousMillis = currentMillis ; // changed from previousMillis = currentMillis + 10;
     
   } 
 
