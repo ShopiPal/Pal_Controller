@@ -46,7 +46,7 @@ class Controller:
         self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 1000)
 
         self.encoder_right_delta_raw_sub = rospy.Subscriber("/encoder_right_delta/raw",Int16,self.encoder_right_delta_raw_callback)
-        self.encoder_right_delta_filter_sub = rospy.Subscriber("/encoder_right_delta/filter",Float32,self.encoder_right_delta_filter_callback)
+        #self.encoder_right_delta_filter_sub = rospy.Subscriber("/encoder_right_delta/filter",Float32,self.encoder_right_delta_filter_callback)
 
         self.vr_current_filter_sub = rospy.Subscriber("/velocity/vr_current/filter",Float32,self.vr_current_filter_callback)
         self.vr_current_raw_sub = rospy.Publisher("/velocity/vr_current/raw",Float32,self.vr_current_raw_callback)
@@ -102,7 +102,7 @@ class Controller:
         rospy.on_shutdown(self.shutdownhook)
 
         ## PID init
-        self.pal_control = PID(8 , 10 , 1) ## need to tune
+        self.pal_control = PID(5 ,35 ,0) ## need to tune
         self.vr_target=0
        # self.update_pose()
 
@@ -219,15 +219,15 @@ class Controller:
             #last_rticks = self.last_right_encoder_value
             #delta_rticks =  self.calc_ticks(current_rticks,last_rticks)
             delta_rticks_raw = self.encoder_right_delta_raw
-            delta_rticks_filter = self.encoder_right_delta_filter
+            #delta_rticks_filter = self.encoder_right_delta_filter
             rospy.loginfo("right delta ticks raw [ticks] = %s" , delta_rticks_raw)
-            rospy.loginfo("right delta ticks filter [ticks] = %s" , delta_rticks_filter)
+            #rospy.loginfo("right delta ticks filter [ticks] = %s" , delta_rticks_filter)
 
 
             ## calc distance of wheels movment
             dl =  2*pi*self.R*delta_lticks/self.N 
             rospy.loginfo("left wheel distance [m] = %s" ,dl)
-            dr = 2*pi*self.R*delta_rticks_filter/self.N
+            dr = 2*pi*self.R*delta_rticks_raw/self.N
             rospy.loginfo("right wheel distance [m] = %s" ,dr)
             dc = (dl + dr)/2
             rospy.loginfo("total wheel distance [m] = %s" ,dc)
@@ -241,7 +241,7 @@ class Controller:
             self.vl_current = dl/self.dt
             v =  (self.vl_current + self.vr_current_filter )/2 # linear
             rospy.loginfo("filter right linear velocity [m/s] = %s" , self.vr_current_filter)
-            rospy.loginfo("raw right linear velocity [m/s] = %s" , self.vr_current_filter)
+            rospy.loginfo("raw right linear velocity [m/s] = %s" , self.vr_current_raw)
 
             rospy.loginfo("linear velocity [m/s] = %s" , v)
             w = (self.vr_current_filter  - self.vl_current)/self.L # angular
@@ -282,7 +282,7 @@ class Controller:
             self.last_left_encoder_value  = self.current_left_encoder_value
             self.last_right_encoder_value = self.current_right_encoder_value
 
-            #self.pwm_right_out.data = self.pal_control.compute(self.vr_current,self.vr_target, self.dt)
+            self.pwm_right_out.data = self.pal_control.compute(self.vr_current_filter,self.vr_target, 0.033)
             print("\n")
 
     def odom_msg_init(self,v,w,odom_quat):

@@ -213,7 +213,7 @@ ros::Publisher leftPub("/encoder_left_ticks", &left_wheel_tick_count);
 
 //geometric params
 const int N = 480;
-float R = 125/2;
+float R = 0.125/2;
 //const float Pi = 3.14159;
 
 // filter params
@@ -223,8 +223,12 @@ float lambda[3] = {0.3,0.2,0.1};
 float dr = 0 ;// same for left side
 float prev_right_delta_ticks[3] = {};
 float dr_raw = 0  ;
-float dr_filter = 0;
-unsigned long dt;
+float dt;
+
+// velocities
+float vr_prev_raw = 0;
+float vr_curr_filter = 0;
+
 
 // Time interval for measurements in milliseconds
 const int interval = 100;
@@ -445,7 +449,7 @@ void setup() {
 void loop() {
 
   unsigned long currentMillis = millis();
-  if (currentMillis-previousMillis >= 20){
+  if (currentMillis-previousMillis >= 33){
   
   //if (isTimeForLoop(LOOPING)) {      // ---> need to check
     sensorCycle();
@@ -505,25 +509,23 @@ void loop() {
     encoder_right_delta_filter.data = lambda[0]*prev_right_delta_ticks[0] + lambda[1]*prev_right_delta_ticks[1] + lambda[2]*prev_right_delta_ticks[2] + (1 - lambda[0] -lambda[1] -lambda[2])*encoder_right_current_ticks;
     
     dr_raw =  (2*PI*R*encoder_right_delta_raw.data)/N; //same for left
-    dr_filter =  (2*PI*R*encoder_right_delta_filter.data)/N; //same for left
+    //dr_filter =  (2*PI*R*encoder_right_delta_filter.data)/N; //same for left
 
-    dt =  currentMillis - previousMillis;
+    dt = (float) (currentMillis - previousMillis)/1000;
 
     vr_current_raw.data = dr_raw/dt;
-    vr_current_filter.data = dr_filter/dt;
+    vr_curr_filter = 0.6*vr_curr_filter + 0.2*vr_current_raw.data +0.2*vr_prev_raw;
+    vr_current_filter.data = vr_curr_filter;
+    vr_prev_raw = vr_current_raw.data;
 
     encoder_right_delta_raw_Pub.publish( &encoder_right_delta_raw);
-    encoder_right_delta_filter_Pub.publish( &encoder_right_delta_filter);
-
+    //encoder_right_delta_filter_Pub.publish( &encoder_right_delta_filter);
     vr_current_raw_Pub.publish( &vr_current_raw);
     vr_current_filter_Pub.publish( &vr_current_filter);
     
     //prev_right_delta_ticks = update_delta_ticks(prev_right_delta_ticks , encoder_right_delta_filter.data);
     encoder_right_last_ticks = encoder_right_current_ticks;
 
-    prev_right_delta_ticks[2] = prev_right_delta_ticks[1];
-    prev_right_delta_ticks[1] = prev_right_delta_ticks[0];
-    prev_right_delta_ticks[0] = encoder_right_delta_filter.data ;
 
 
     // Stop the car if there are no pwm messages in the last 1 sec

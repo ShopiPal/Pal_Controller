@@ -2,10 +2,8 @@
 MAX_PWM = 255
 MIN_PWM = 0
 
-# PID parameters
-KP = 0.0155
-KI = 0.026
-KD = 0.00146
+MAX_V = 12
+MIN_V = 0
 # PID controller class,
 class PID(object):
     def __init__(self,KP =0.0155 ,KI=0.026,KD=0.00146):
@@ -27,9 +25,9 @@ class PID(object):
         self.derivative_error = (self.error-self.last_error)/time_interval
         self.last_error = self.error
         v_output = self.kp*self.error + self.ki*self.integral_error + self.kd*self.derivative_error
-        self.output = int(self.map_range(v_output,4,11,0,255))
-        if self.output >= MAX_PWM:
-            self.output = MAX_PWM
-        elif self.output <= MIN_PWM:
-            self.output = MIN_PWM
+        if v_output >= MAX_V:
+            v_output = MAX_V
+        elif v_output <= MIN_V:
+            v_output = MIN_V
+        self.output = int(self.map_range(v_output,MIN_V ,MAX_V,MIN_PWM,MAX_PWM))
         return self.output
