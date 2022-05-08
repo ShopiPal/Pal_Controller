@@ -45,20 +45,20 @@ class Controller:
     def __init__(self):
         
         ## init publisher and subscribers
-        self.left_pwm_publisher = rospy.Publisher("/left_motor_pwm",Int16,queue_size=1000) 
-        self.right_pwm_publisher = rospy.Publisher("/right_motor_pwm",Int16,queue_size=1000) 
-        self.left_encoder_sub = rospy.Subscriber("/encoder_left_ticks",Int16,self.leftEncoder_callback)
-        self.right_encoder_sub = rospy.Subscriber("/encoder_right_ticks",Int16,self.rightEncoder_callback)
+        self.left_pwm_publisher = rospy.Publisher("/left_motor_pwm",Int16,queue_size=100) 
+        self.right_pwm_publisher = rospy.Publisher("/right_motor_pwm",Int16,queue_size=100) 
+        self.left_encoder_sub = rospy.Subscriber("/encoder_left_ticks",Int16,self.leftEncoder_callback,queue_size=100)
+        self.right_encoder_sub = rospy.Subscriber("/encoder_right_ticks",Int16,self.rightEncoder_callback,queue_size=100)
         self.cmd_vel_sub = rospy.Subscriber("/cmd_vel",Twist,self.control_vel_callback)
-        self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 1000)
+        self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 100)
 
 
         self.vr_current_raw_publisher = rospy.Publisher("/velocity/vr_current/raw",Float64,queue_size=100)
         self.vr_current_filter_publisher = rospy.Publisher("/velocity/vr_current/filter",Float64,queue_size=100)
         self.vl_current_raw_publisher = rospy.Publisher("/velocity/vl_current/raw",Float64,queue_size=100)
         self.vl_current_filter_publisher = rospy.Publisher("/velocity/vl_current/filter",Float64,queue_size=100)
-        self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float64,queue_size=1000)
-        self.vl_target_publisher = rospy.Publisher("/velocity/vl_target",Float64,queue_size=1000)
+        self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float64,queue_size=100)
+        self.vl_target_publisher = rospy.Publisher("/velocity/vl_target",Float64,queue_size=100)
         ## init services
         self.set_pwm_service = rospy.Service('motors/set_pwm', PwmVal , self.set_pwm_callback)
         self.motors_stop_service = rospy.Service('motors/stop', SetBool , self.stop_callback)
@@ -355,7 +355,7 @@ Loop:   update pose
 if __name__ == '__main__':
     rospy.init_node('pal_controller_node', anonymous=True)    
     pal_control = Controller()
-    rate = rospy.Rate(10)
+    rate = rospy.Rate(6)
     while not pal_control.ctrl_c:
        pal_control.update_pose()
        pal_control.publish()

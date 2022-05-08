@@ -381,7 +381,7 @@ void setup() {
 void loop() {
 
   unsigned long currentMillis = millis();
-  if (currentMillis-previousMillis >= 10){
+  if (currentMillis-previousMillis >= 33){
      
   
   //if (isTimeForLoop(LOOPING)) {      // ---> need to check
