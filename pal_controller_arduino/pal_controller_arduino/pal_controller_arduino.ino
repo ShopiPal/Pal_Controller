@@ -187,29 +187,39 @@ const int encoder_maximum = 32767;
 //last and current ticks init
 int encoder_right_current_ticks = 0;
 int encoder_right_last_ticks = 0;
+int encoder_left_current_ticks = 0;
+int encoder_left_last_ticks = 0;
 
-// Keep track of the number of wheel ticks
+// right encoder & velocity topics
 
-// right encoder topics
+// encoder:
 std_msgs::Int16 right_wheel_tick_count;
-std_msgs::Int16 encoder_right_delta_raw;
-std_msgs::Float32 encoder_right_delta_filter;
+std_msgs::Int16 encoder_right_delta;
 ros::Publisher rightPub("/encoder_right_ticks", &right_wheel_tick_count);
-ros::Publisher encoder_right_delta_raw_Pub("/encoder_right_delta/raw",&encoder_right_delta_raw);
-ros::Publisher encoder_right_delta_filter_Pub("/encoder_right_delta/filter",&encoder_right_delta_filter);
+ros::Publisher encoder_right_delta_raw_Pub("/encoder_right_delta",&encoder_right_delta);
 
+// velocity:
 // publisher of velocity filter data
-std_msgs::Float32 vr_current_filter; //same for left
-ros::Publisher vr_current_filter_Pub("velocity/vr_current/filter",&vr_current_filter); //same for left
+std_msgs::Float32 vr_current_filter; 
+ros::Publisher vr_current_filter_Pub("velocity/vr_current/filter",&vr_current_filter); 
 // publisher of velocity raw data
-std_msgs::Float32 vr_current_raw; //same for left
-ros::Publisher vr_current_raw_Pub("velocity/vr_current/raw",&vr_current_raw); //same for left
+std_msgs::Float32 vr_current_raw; 
+ros::Publisher vr_current_raw_Pub("velocity/vr_current/raw",&vr_current_raw); 
 
-//left encoder topics 
+// left encoder & velocity topics
+// encoder:
 std_msgs::Int16 left_wheel_tick_count;
 ros::Publisher leftPub("/encoder_left_ticks", &left_wheel_tick_count);
+std_msgs::Int16 encoder_left_delta;
+ros::Publisher encoder_left_delta_raw_Pub("/encoder_left_delta",&encoder_left_delta);
  
-
+// velocity:
+// publisher of velocity filter data
+std_msgs::Float32 vl_current_filter; 
+ros::Publisher vl_current_filter_Pub("velocity/vl_current/filter",&vl_current_filter); 
+// publisher of velocity raw data
+std_msgs::Float32 vl_current_raw; 
+ros::Publisher vl_current_raw_Pub("velocity/vl_current/raw",&vl_current_raw); 
 
 //geometric params
 const int N = 480;
@@ -217,18 +227,17 @@ float R = 0.125/2;
 //const float Pi = 3.14159;
 
 // filter params
-float lambda[3] = {0.3,0.2,0.1};
 
 // right init params
-float dr = 0 ;// same for left side
-float prev_right_delta_ticks[3] = {};
-float dr_raw = 0  ;
+float dr = 0 ;
+float dl = 0 ;
 float dt;
 
 // velocities
 float vr_prev_raw = 0;
 float vr_curr_filter = 0;
-
+float vl_prev_raw = 0;
+float vl_curr_filter = 0;
 
 // Time interval for measurements in milliseconds
 const int interval = 100;
@@ -330,17 +339,7 @@ int calc_ticks(int current_ticks ,int last_ticks) {
             return current_ticks - last_ticks ;
   }
 }
-/////////////////////// encoder filter functions////////////////////////////
-//float LPF(float prev_delta_ticks , float current_delta_ticks){
-  //return lambda[0]*prev_delta_ticks[0] + lambda[1]*prev_delta_ticks[1] + lambda[2]*prev_delta_ticks[2] + (1 - lambda[0] -lambda[1] -lambda[2])*current_delta_ticks;
-//}
 
-//float update_delta_ticks( prev_delta_ticks , float current_delta_ticks_filter){
-  //prev_delta_ticks[2] = prev_delta_ticks[1];
-  //prev_delta_ticks[1] = prev_delta_ticks[0];
-  //prev_delta_ticks[0] = current_delta_ticks_filter ; 
-  //return prev_delta_ticks ;
-//}
 
 /////////////////////// Pwm subscribing ////////////////////////////
 
@@ -430,12 +429,15 @@ void setup() {
   nh.initNode();
   nh.advertise(rightPub);
   nh.advertise(encoder_right_delta_raw_Pub);
-  nh.advertise(encoder_right_delta_filter_Pub);
   nh.advertise(vr_current_filter_Pub);
   nh.advertise(vr_current_raw_Pub);
 
 
   nh.advertise(leftPub);
+  nh.advertise(encoder_left_delta_raw_Pub);
+  nh.advertise(vl_current_filter_Pub);
+  nh.advertise(vl_current_raw_Pub);
+
   nh.subscribe(subLeftPwm);
   nh.subscribe(subRightPwm);
   nh.advertise(pub_range_front);
@@ -498,37 +500,51 @@ void loop() {
        
     
  
-    // Publish tick counts to topics
-    leftPub.publish( &left_wheel_tick_count ); 
-    rightPub.publish( &right_wheel_tick_count );
-
+    
+    // calc delta ticks
     encoder_right_current_ticks = right_wheel_tick_count.data;
     encoder_right_delta_raw.data = calc_ticks(encoder_right_current_ticks ,encoder_right_last_ticks);
     
-    //encoder_right_delta_filter.data = LPF(prev_right_delta_ticks,(float) encoder_right_delta_raw.data);
-    encoder_right_delta_filter.data = lambda[0]*prev_right_delta_ticks[0] + lambda[1]*prev_right_delta_ticks[1] + lambda[2]*prev_right_delta_ticks[2] + (1 - lambda[0] -lambda[1] -lambda[2])*encoder_right_current_ticks;
-    
-    dr_raw =  (2*PI*R*encoder_right_delta_raw.data)/N; //same for left
-    //dr_filter =  (2*PI*R*encoder_right_delta_filter.data)/N; //same for left
+    encoder_left_current_ticks = left_wheel_tick_count.data;
+    encoder_left_delta.data = calc_ticks(encoder_left_current_ticks ,encoder_left_last_ticks);
 
+    // calc distance moved [m]    
+    dr =  (2*PI*R*encoder_right_delta.data)/N;
+    dl =  (2*PI*R*encoder_left_delta.data)/N; 
+
+    // calc the time in sec [s]
     dt = (float) (currentMillis - previousMillis)/1000;
 
-    vr_current_raw.data = dr_raw/dt;
+    // calc velocities [m/s]
+    vr_current_raw.data = dr/dt;
+    vl_current_raw.data = dl/dt;
+
+    // filtering with low_pass filter 
     vr_curr_filter = 0.6*vr_curr_filter + 0.2*vr_current_raw.data +0.2*vr_prev_raw;
     vr_current_filter.data = vr_curr_filter;
-    vr_prev_raw = vr_current_raw.data;
+    vl_curr_filter = 0.6*vl_curr_filter + 0.2*vl_current_raw.data +0.2*vl_prev_raw;
+    vl_current_filter.data = vl_curr_filter;
+    
+    // update filtered distances
+    dr_filter = vr_curr_filter*dt ; 
+    dl_filter = vl_curr_filter*dt ; 
 
-    encoder_right_delta_raw_Pub.publish( &encoder_right_delta_raw);
-    //encoder_right_delta_filter_Pub.publish( &encoder_right_delta_filter);
+    
+
+
+    // publishing
+    leftPub.publish( &left_wheel_tick_count ); 
+    rightPub.publish( &right_wheel_tick_count );
+    
+    encoder_right_delta_raw_Pub.publish( &encoder_right_delta);
+    encoder_left_delta_raw_Pub.publish( &encoder_left_delta);
+
     vr_current_raw_Pub.publish( &vr_current_raw);
     vr_current_filter_Pub.publish( &vr_current_filter);
-    
-    //prev_right_delta_ticks = update_delta_ticks(prev_right_delta_ticks , encoder_right_delta_filter.data);
-    encoder_right_last_ticks = encoder_right_current_ticks;
-
-
-
-    // Stop the car if there are no pwm messages in the last 1 sec
+    vl_current_raw_Pub.publish( &vl_current_raw);
+    vl_current_filter_Pub.publish( &vl_current_filter);
+      
+     // Stop the car if there are no pwm messages in the last 1 sec
     if((millis()/1000) - left_lastPwmReceived > 2) {   ////// changed to 2 from 1 sec
       pwmLeftReq = 0;
       analogWrite(pwmA, 0);
@@ -537,11 +553,15 @@ void loop() {
       pwmRightReq = 0;
       analogWrite(pwmB, 0);
     }
-    //startTimer();
-    previousMillis = currentMillis;
     
+    
+    // update prev
+    encoder_right_last_ticks = encoder_right_current_ticks;
+    encoder_left_last_ticks = encoder_left_current_ticks;
+    vr_prev_raw = vr_current_raw.data;
+    vl_prev_raw = vl_current_raw.data;
+    previousMillis = currentMillis;
+    //startTimer();
   } 
-
-  
  nh.spinOnce(); 
 }
