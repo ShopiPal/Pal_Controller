@@ -117,7 +117,7 @@ class Controller:
         rospy.on_shutdown(self.shutdownhook)
 
         ## PID init
-        self.pal_control = PID(5 ,40 ,0) ## need to tune
+        self.pal_control = PID(1 ,30 ,0.05) ## need to tune
         
        # self.update_pose()
 
@@ -292,7 +292,7 @@ class Controller:
 
 
             #self.pwm_right_out.data = direction_r*self.pal_control.compute(direction_r_current*self.vr_current_filter,direction_r*self.vr_target, 0.033) #fill dt as the arduino sample time
-            #self.pwm_left_out.data = direction_l*self.pal_control.compute(direction_l_current*self.vl_current_filter,direction_l*self.vl_target, 0.033) #fill dt as the arduino sample time
+            self.pwm_left_out.data = direction_l*self.pal_control.compute(direction_l_current*self.vl_current_filter,direction_l*self.vl_target, 0.033) #fill dt as the arduino sample time
             
             
             

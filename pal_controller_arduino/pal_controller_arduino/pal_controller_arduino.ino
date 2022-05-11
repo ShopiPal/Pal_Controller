@@ -399,11 +399,11 @@ void readEncoder(){
   int increment = 0;
   if(b>0){
     // If B is high, increment forward
-    increment = 1;
+    increment = -1;
   }
   else{
     // Otherwise, increment backward
-    increment = -1;
+    increment = 1;
   }
   pos_i = pos_i + increment;
 
@@ -413,6 +413,8 @@ void readEncoder(){
   velocity_i = increment/deltaT;
   prevT_i = currT;
 }
+
+
 
 
 /////////////////////// setup ////////////////////////////
@@ -494,35 +496,36 @@ void setup() {
 }
 
 void loop() {
-// read the position in an atomic block
-  // to avoid potential misreads
-  int pos = 0;
-  float velocity2 = 0;
-  ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-    pos = pos_i;
-    velocity2 = velocity_i;
-  }
 
-  // Compute velocity with method 1
-  long currT = micros();
-  float deltaT = ((float) (currT-prevT))/1.0e6;
-  float velocity1 = (pos - posPrev)/deltaT;
-  posPrev = pos;
-  prevT = currT;
-
-  // Convert count/s to RPM
-  float v1 = velocity1/480*60.0;
-  float v2 = velocity2/480*60.0;
-
-  // Low-pass filter (25 Hz cutoff)
-  v1Filt = 0.854*v1Filt + 0.0728*v1 + 0.0728*v1Prev;
-  v1Prev = v1;
-  v2Filt = 0.854*v2Filt + 0.0728*v2 + 0.0728*v2Prev;
-  v2Prev = v2;
-
-  delay(1);
   unsigned long currentMillis = millis();
   if (currentMillis-previousMillis >= 33){
+    // read the position in an atomic block
+  // to avoid potential misreads
+    int pos = 0;
+    float velocity2 = 0;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+      pos = pos_i;
+      velocity2 = velocity_i;
+    }
+
+  // Compute velocity with method 1
+    long currT = micros();
+    float deltaT = ((float) (currT-prevT))/1.0e6;
+    float velocity1 = (pos - posPrev)/deltaT;
+    posPrev = pos;
+    prevT = currT;
+
+  // Convert count/s to RPM
+    float v1 = velocity1/480*60.0;
+    float v2 = velocity2/480*60.0;
+
+  // Low-pass filter (25 Hz cutoff)
+    v1Filt = 0.854*v1Filt + 0.0728*v1 + 0.0728*v1Prev;
+    v1Prev = v1;
+    v2Filt = 0.854*v2Filt + 0.0728*v2 + 0.0728*v2Prev;
+    v2Prev = v2;
+
+    delay(1);
   //(1/Sample_Freq)*1000){ /// needs to check the general sintext!
   
   //if (isTimeForLoop(LOOPING)) {      // ---> need to check
