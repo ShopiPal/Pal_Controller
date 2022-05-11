@@ -18,7 +18,8 @@
 #include <SimpleKalmanFilter.h>
 #include <sensor_msgs/Range.h>
 
-
+//velocity calculation
+#include <util/atomic.h>
  
 // Handles startup and shutdown of ROS
 ros::NodeHandle nh;
@@ -245,7 +246,24 @@ float vl_curr_filter = 0;
 const int interval = 100;
 long previousMillis = 0;
 long currentMillis = 0;
- 
+
+
+//////////////////velocity calculation //////////
+// globals
+long prevT = 0;
+int posPrev = 0;
+// Use the "volatile" directive for variables
+// used in an interrupt
+volatile int pos_i = 0;
+volatile float velocity_i = 0;
+volatile long prevT_i = 0;
+
+float v1Filt = 0;
+float v1Prev = 0;
+float v2Filt = 0;
+float v2Prev = 0;
+
+float eintegral = 0;
 ////////////////// Motor Controller Variables and Constants ///////////////////
 int pwmLeftReq = 0;
 int pwmRightReq = 0;
@@ -374,6 +392,28 @@ void set_pwm_values(int pwm_val ,int pwm_pin ,int in1_pin ,int in2_pin) {
 // Set up ROS subscriber to the pwm command
 ros::Subscriber<std_msgs::Int16> subLeftPwm("/left_motor_pwm" , &set_pwm_left);
 ros::Subscriber<std_msgs::Int16> subRightPwm("/right_motor_pwm" , &set_pwm_right);
+///////////////////////velocity calculation////////////////
+void readEncoder(){
+  // Read encoder B when ENCA rises
+  int b = digitalRead(ENC_IN_LEFT_B);
+  int increment = 0;
+  if(b>0){
+    // If B is high, increment forward
+    increment = 1;
+  }
+  else{
+    // Otherwise, increment backward
+    increment = -1;
+  }
+  pos_i = pos_i + increment;
+
+  // Compute velocity with method 2
+  long currT = micros();
+  float deltaT = ((float) (currT - prevT_i))/1.0e6;
+  velocity_i = increment/deltaT;
+  prevT_i = currT;
+}
+
 
 /////////////////////// setup ////////////////////////////
 
@@ -403,8 +443,11 @@ void setup() {
   pinMode(ENC_IN_RIGHT_B , INPUT);
  
   // Every time the pin goes high, this is a tick
-  attachInterrupt(digitalPinToInterrupt(ENC_IN_LEFT_A), left_wheel_tick, RISING);
-  attachInterrupt(digitalPinToInterrupt(ENC_IN_RIGHT_A), right_wheel_tick, RISING);
+//  attachInterrupt(digitalPinToInterrupt(ENC_IN_LEFT_A), left_wheel_tick, RISING);
+//  attachInterrupt(digitalPinToInterrupt(ENC_IN_RIGHT_A), right_wheel_tick, RISING);
+
+////////velocity calculation////////
+  attachInterrupt(digitalPinToInterrupt(ENC_IN_LEFT_A),readEncoder,RISING);
    
   // Motor control pins setup
   // left motor pin setup
@@ -427,7 +470,7 @@ void setup() {
   analogWrite(pwmB, 0);
  
   // ROS Setup
-  nh.getHardware()->setBaud(500000); ///changed from 57600
+  nh.getHardware()->setBaud(115200); ///changed from 57600
   nh.initNode();
   nh.advertise(rightPub);
   nh.advertise(encoder_right_delta_raw_Pub);
@@ -451,7 +494,33 @@ void setup() {
 }
 
 void loop() {
+// read the position in an atomic block
+  // to avoid potential misreads
+  int pos = 0;
+  float velocity2 = 0;
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+    pos = pos_i;
+    velocity2 = velocity_i;
+  }
 
+  // Compute velocity with method 1
+  long currT = micros();
+  float deltaT = ((float) (currT-prevT))/1.0e6;
+  float velocity1 = (pos - posPrev)/deltaT;
+  posPrev = pos;
+  prevT = currT;
+
+  // Convert count/s to RPM
+  float v1 = velocity1/480*60.0;
+  float v2 = velocity2/480*60.0;
+
+  // Low-pass filter (25 Hz cutoff)
+  v1Filt = 0.854*v1Filt + 0.0728*v1 + 0.0728*v1Prev;
+  v1Prev = v1;
+  v2Filt = 0.854*v2Filt + 0.0728*v2 + 0.0728*v2Prev;
+  v2Prev = v2;
+
+  delay(1);
   unsigned long currentMillis = millis();
   if (currentMillis-previousMillis >= 33){
   //(1/Sample_Freq)*1000){ /// needs to check the general sintext!
@@ -524,9 +593,16 @@ void loop() {
 
     // filtering with low_pass filter 
     vr_curr_filter = 0.34*vr_curr_filter + 0.33*vr_current_raw.data +0.33*vr_prev_raw;
+
+
+     
     vr_current_filter.data = vr_curr_filter;
+
+
+
+    float v1filt_linear = (v1Filt * 2 * PI * R) / 60   ;
     vl_curr_filter = 0.34*vl_curr_filter + 0.33*vl_current_raw.data +0.33*vl_prev_raw;
-    vl_current_filter.data = vl_curr_filter;
+    vl_current_filter.data = v1filt_linear;
     
     // update filtered distances
     dr = vr_curr_filter*dt ; 

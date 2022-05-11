@@ -278,7 +278,7 @@ class Controller:
                 self.current_time,
                 "base_link",
                 "odom"
-            )5
+            )
 
             # publish odom over ros
             self.odom_msg_init(v,w,odom_quat)
@@ -291,8 +291,8 @@ class Controller:
 
 
 
-            self.pwm_right_out.data = direction_r*self.pal_control.compute(direction_r_current*self.vr_current_filter,direction_r*self.vr_target, 0.033) #fill dt as the arduino sample time
-            self.pwm_left_out.data = direction_l*self.pal_control.compute(direction_l_current*self.vl_current_filter,direction_l*self.vl_target, 0.033) #fill dt as the arduino sample time
+            #self.pwm_right_out.data = direction_r*self.pal_control.compute(direction_r_current*self.vr_current_filter,direction_r*self.vr_target, 0.033) #fill dt as the arduino sample time
+            #self.pwm_left_out.data = direction_l*self.pal_control.compute(direction_l_current*self.vl_current_filter,direction_l*self.vl_target, 0.033) #fill dt as the arduino sample time
             
             
             
