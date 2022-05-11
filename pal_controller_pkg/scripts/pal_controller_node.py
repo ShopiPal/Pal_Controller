@@ -12,6 +12,7 @@ from nav_msgs.msg import Odometry
 import tf
 from tf.broadcaster import TransformBroadcaster
 from pal_PID import PID
+import time
 
 ''' 
 creation class of type 'controller'
@@ -54,9 +55,10 @@ class Controller:
         self.vl_current_filter_sub = rospy.Subscriber("/velocity/vl_current/filter",Float32,self.vl_current_filter_callback)
         self.vl_current_raw_sub = rospy.Publisher("/velocity/vl_current/raw",Float32,self.vl_current_raw_callback)
 
-        self.vr_target = rospy.Publisher("/velocity/vr_target",Float32,queue_size=100)
-        self.vl_target = rospy.Publisher("/velocity/vl_target",Float32,queue_size=100)
+        self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float32,queue_size=100)
+        self.vl_target_publisher = rospy.Publisher("/velocity/vl_target",Float32,queue_size=100)
 
+        self.t_0 = time.time()
 
         ## init services
         self.set_pwm_service = rospy.Service('motors/set_pwm', PwmVal , self.set_pwm_callback)
@@ -115,7 +117,7 @@ class Controller:
         rospy.on_shutdown(self.shutdownhook)
 
         ## PID init
-        self.pal_control = PID(6 ,40 ,0) ## need to tune
+        self.pal_control = PID(5 ,40 ,0) ## need to tune
         
        # self.update_pose()
 
@@ -276,7 +278,7 @@ class Controller:
                 self.current_time,
                 "base_link",
                 "odom"
-            )
+            )5
 
             # publish odom over ros
             self.odom_msg_init(v,w,odom_quat)
@@ -291,6 +293,11 @@ class Controller:
 
             self.pwm_right_out.data = direction_r*self.pal_control.compute(direction_r_current*self.vr_current_filter,direction_r*self.vr_target, 0.033) #fill dt as the arduino sample time
             self.pwm_left_out.data = direction_l*self.pal_control.compute(direction_l_current*self.vl_current_filter,direction_l*self.vl_target, 0.033) #fill dt as the arduino sample time
+            
+            
+            
+            #self.pwm_right_out.data = 70 + 60*sin(1*pi*(time.time()-self.t_0)) #fill dt as the arduino sample time
+            #self.pwm_left_out.data = 70 + 60*sin(1*pi*(time.time()-self.t_0)) #fill dt as the arduino sample time
 
             # reset time and encoders current+last variables
             self.last_time = self.current_time

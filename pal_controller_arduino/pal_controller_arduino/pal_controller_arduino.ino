@@ -38,6 +38,8 @@ int LOOPING = 10 ; //Loop for every 10 milliseconds.
  
 uint8_t oldSensorReading[SONAR_NUM];    //Store last valid value of the sensors.
 
+int Sample_Freq = 25; // [Hz]
+
 uint8_t frontSensor;             //Store raw sensor's value.
 uint8_t backSensor;
 uint8_t rightSensor;
@@ -452,6 +454,7 @@ void loop() {
 
   unsigned long currentMillis = millis();
   if (currentMillis-previousMillis >= 33){
+  //(1/Sample_Freq)*1000){ /// needs to check the general sintext!
   
   //if (isTimeForLoop(LOOPING)) {      // ---> need to check
     sensorCycle();
@@ -503,7 +506,7 @@ void loop() {
     
     // calc delta ticks
     encoder_right_current_ticks = right_wheel_tick_count.data;
-    encoder_right_delta_raw.data = calc_ticks(encoder_right_current_ticks ,encoder_right_last_ticks);
+    encoder_right_delta.data = calc_ticks(encoder_right_current_ticks ,encoder_right_last_ticks);
     
     encoder_left_current_ticks = left_wheel_tick_count.data;
     encoder_left_delta.data = calc_ticks(encoder_left_current_ticks ,encoder_left_last_ticks);
@@ -520,29 +523,21 @@ void loop() {
     vl_current_raw.data = dl/dt;
 
     // filtering with low_pass filter 
-    vr_curr_filter = 0.6*vr_curr_filter + 0.2*vr_current_raw.data +0.2*vr_prev_raw;
+    vr_curr_filter = 0.34*vr_curr_filter + 0.33*vr_current_raw.data +0.33*vr_prev_raw;
     vr_current_filter.data = vr_curr_filter;
-    vl_curr_filter = 0.6*vl_curr_filter + 0.2*vl_current_raw.data +0.2*vl_prev_raw;
+    vl_curr_filter = 0.34*vl_curr_filter + 0.33*vl_current_raw.data +0.33*vl_prev_raw;
     vl_current_filter.data = vl_curr_filter;
     
     // update filtered distances
-    dr_filter = vr_curr_filter*dt ; 
-    dl_filter = vl_curr_filter*dt ; 
+    dr = vr_curr_filter*dt ; 
+    dl = vl_curr_filter*dt ; 
 
     
 
 
-    // publishing
-    leftPub.publish( &left_wheel_tick_count ); 
-    rightPub.publish( &right_wheel_tick_count );
-    
-    encoder_right_delta_raw_Pub.publish( &encoder_right_delta);
-    encoder_left_delta_raw_Pub.publish( &encoder_left_delta);
 
-    vr_current_raw_Pub.publish( &vr_current_raw);
-    vr_current_filter_Pub.publish( &vr_current_filter);
-    vl_current_raw_Pub.publish( &vl_current_raw);
-    vl_current_filter_Pub.publish( &vl_current_filter);
+
+    
       
      // Stop the car if there are no pwm messages in the last 1 sec
     if((millis()/1000) - left_lastPwmReceived > 2) {   ////// changed to 2 from 1 sec
@@ -560,7 +555,20 @@ void loop() {
     encoder_left_last_ticks = encoder_left_current_ticks;
     vr_prev_raw = vr_current_raw.data;
     vl_prev_raw = vl_current_raw.data;
+        // publishing
+    
+    
     previousMillis = currentMillis;
+    
+    leftPub.publish( &left_wheel_tick_count ); 
+    rightPub.publish( &right_wheel_tick_count );
+    
+    encoder_right_delta_raw_Pub.publish( &encoder_right_delta);
+    encoder_left_delta_raw_Pub.publish( &encoder_left_delta);
+    vr_current_raw_Pub.publish( &vr_current_raw);
+    vr_current_filter_Pub.publish( &vr_current_filter);
+    vl_current_raw_Pub.publish( &vl_current_raw);
+    vl_current_filter_Pub.publish( &vl_current_filter);
     //startTimer();
   } 
  nh.spinOnce(); 
