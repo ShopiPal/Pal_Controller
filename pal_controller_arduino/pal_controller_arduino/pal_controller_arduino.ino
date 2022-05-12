@@ -209,10 +209,10 @@ ros::Publisher rightPub("/encoder_right_ticks", &right_wheel_tick_count);
 // velocity:
 // publisher of velocity filter data
 std_msgs::Float32 vr_current_filter; 
-ros::Publisher vr_current_filter_Pub("velocity/vr_current/filter",&vr_current_filter); 
+ros::Publisher vr_current_filter_Pub("/velocity/vr_current/filter",&vr_current_filter); 
 // publisher of velocity raw data
 std_msgs::Float32 vr_current_raw; 
-ros::Publisher vr_current_raw_Pub("velocity/vr_current/raw",&vr_current_raw); 
+ros::Publisher vr_current_raw_Pub("/velocity/vr_current/raw",&vr_current_raw); 
 
 // left:
 // encoder:
@@ -222,16 +222,16 @@ ros::Publisher leftPub("/encoder_left_ticks", &left_wheel_tick_count);
 // velocity:
 // publisher of velocity filter data
 std_msgs::Float32 vl_current_filter; 
-ros::Publisher vl_current_filter_Pub("velocity/vl_current/filter",&vl_current_filter); 
+ros::Publisher vl_current_filter_Pub("/velocity/vl_current/filter",&vl_current_filter); 
 // publisher of velocity raw data
 std_msgs::Float32 vl_current_raw; 
-ros::Publisher vl_current_raw_Pub("velocity/vl_current/raw",&vl_current_raw); 
+ros::Publisher vl_current_raw_Pub("/velocity/vl_current/raw",&vl_current_raw); 
 
 
 ///// topic total distance of the robot
 
 std_msgs::Float32 distance; 
-ros::Publisher distance_Pub("distance/dc",&distance);
+ros::Publisher distance_Pub("/distance/dc",&distance);
 
 /////////////////////// encoders handle functions ////////////////
 // left:
