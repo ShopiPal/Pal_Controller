@@ -39,8 +39,6 @@ int LOOPING = 10 ; //Loop for every 10 milliseconds.
  
 uint8_t oldSensorReading[SONAR_NUM];    //Store last valid value of the sensors.
 
-int Sample_Freq = 25; // [Hz]
-
 uint8_t frontSensor;             //Store raw sensor's value.
 uint8_t backSensor;
 uint8_t rightSensor;
@@ -162,12 +160,7 @@ ros::Publisher pub_range_front_right("/sonar_front_right", &range_front_right);
 ros::Publisher pub_range_front_left("/sonar_front_left", &range_front_left);
 
 
-
-
-
-
-
-////////////////// Tick Data Publishing Variables and Constants ///////////////
+////////////////// Encoder & Velocities variables and consts /////////////////
  
 // Encoder output to Arduino Interrupt pin. Tracks the tick count.
 #define ENC_IN_LEFT_A 18 //white
@@ -176,30 +169,42 @@ ros::Publisher pub_range_front_left("/sonar_front_left", &range_front_left);
 // Other encoder output to Arduino to keep track of wheel direction
 // Tracks the direction of rotation.
 #define ENC_IN_LEFT_B 19 // yellow
-#define ENC_IN_RIGHT_B 3 // yellow ############################## edit fritzing
+#define ENC_IN_RIGHT_B 3 // yellow 
  
-// True = Forward; False = Reverse
-boolean Direction_left = true;
-boolean Direction_right = true;
- 
-// Minumum and maximum values for 16-bit integers
-// Range of 65,535
-const int encoder_minimum = -32768;
-const int encoder_maximum = 32767;
+//geometric params
+const int N = 480; // <<<check
+const float R = 0.125/2;
 
-//last and current ticks init
-int encoder_right_current_ticks = 0;
-int encoder_right_last_ticks = 0;
-int encoder_left_current_ticks = 0;
-int encoder_left_last_ticks = 0;
+// Encoders 
+// Use the "volatile" directive for variables
+// used in an interrupt
+volatile int pos_i_left = 0;
+volatile long prevT_i_left = 0;
+int posPrev_left = 0;
 
-// right encoder & velocity topics
+volatile int pos_i_right = 0;
+volatile long prevT_i_right = 0;
+int posPrev_right = 0;
 
+// velocities
+float vr_prev_raw = 0;
+float vr_curr_filter = 0;
+
+float vl_prev_raw = 0;
+float vl_curr_filter = 0;
+
+// Time interval for measurements in milliseconds
+long previousMillis = 0;
+long currentMillis = 0;
+// previous time in micros << check if necessary
+long prevT = 0;
+
+////////// Encoders & velocities & distance ROS topics //////
+
+// right:
 // encoder:
 std_msgs::Int16 right_wheel_tick_count;
-std_msgs::Int16 encoder_right_delta;
 ros::Publisher rightPub("/encoder_right_ticks", &right_wheel_tick_count);
-ros::Publisher encoder_right_delta_raw_Pub("/encoder_right_delta",&encoder_right_delta);
 
 // velocity:
 // publisher of velocity filter data
@@ -209,12 +214,10 @@ ros::Publisher vr_current_filter_Pub("velocity/vr_current/filter",&vr_current_fi
 std_msgs::Float32 vr_current_raw; 
 ros::Publisher vr_current_raw_Pub("velocity/vr_current/raw",&vr_current_raw); 
 
-// left encoder & velocity topics
+// left:
 // encoder:
 std_msgs::Int16 left_wheel_tick_count;
 ros::Publisher leftPub("/encoder_left_ticks", &left_wheel_tick_count);
-std_msgs::Int16 encoder_left_delta;
-ros::Publisher encoder_left_delta_raw_Pub("/encoder_left_delta",&encoder_left_delta);
  
 // velocity:
 // publisher of velocity filter data
@@ -224,53 +227,53 @@ ros::Publisher vl_current_filter_Pub("velocity/vl_current/filter",&vl_current_fi
 std_msgs::Float32 vl_current_raw; 
 ros::Publisher vl_current_raw_Pub("velocity/vl_current/raw",&vl_current_raw); 
 
-//geometric params
-const int N = 480;
-float R = 0.125/2;
-//const float Pi = 3.14159;
 
-// filter params
+///// topic total distance of the robot
 
-// right init params
-float dr = 0 ;
-float dl = 0 ;
-float dt;
+std_msgs::Float32 distance; 
+ros::Publisher distance_Pub("distance/dc",&distance);
 
-// velocities
-float vr_prev_raw = 0;
-float vr_curr_filter = 0;
-float vl_prev_raw = 0;
-float vl_curr_filter = 0;
+/////////////////////// encoders handle functions ////////////////
+// left:
+void readEncoder_left(){
+  // Read encoder B when ENCA rises
+  int b_left = digitalRead(ENC_IN_LEFT_B);
+  int increment_left = 0;
+  if(b_left>0){
+    // If B is high, increment backward
+    increment_left = -1;
+  }
+  else{
+    // Otherwise, increment forward
+    increment_left = 1;
+  }
+  pos_i_left = pos_i_left + increment_left;
+}
 
-// Time interval for measurements in milliseconds
-const int interval = 100;
-long previousMillis = 0;
-long currentMillis = 0;
+// right:
+void readEncoder_right(){
+  // Read encoder B when ENCA rises
+  int b_right = digitalRead(ENC_IN_RIGHT_B);
+  int increment_right = 0;
+  if(b_right>0){
+    // If B is high, increment forward
+    increment_right = 1;
+  }
+  else{
+    // Otherwise, increment backward 
+    increment_right = -1;
+  }
+  pos_i_right = pos_i_right + increment_right;
+}
 
 
-//////////////////velocity calculation //////////
-// globals
-long prevT = 0;
-int posPrev = 0;
-// Use the "volatile" directive for variables
-// used in an interrupt
-volatile int pos_i = 0;
-volatile float velocity_i = 0;
-volatile long prevT_i = 0;
 
-float v1Filt = 0;
-float v1Prev = 0;
-float v2Filt = 0;
-float v2Prev = 0;
 
-float eintegral = 0;
 ////////////////// Motor Controller Variables and Constants ///////////////////
 int pwmLeftReq = 0;
 int pwmRightReq = 0;
 
-
- 
-// Motor A connections -------------- TO DO --------------
+// Motor A connections 
 const int pwmA = 12 ; //white
 const int in1 = 11 ; // orange
 const int in2 = 10 ; // purple
@@ -283,83 +286,6 @@ const int in4 = 4; //purple
 // Record the time that the last velocity command was received
 double left_lastPwmReceived = 0;
 double right_lastPwmReceived = 0; 
-
-/////////////////////// Tick Data Publishing Functions ////////////////////////
- 
-// Increment the number of ticks
-void right_wheel_tick() {
-   
-  // Read the value for the encoder for the right wheel
-  int val = digitalRead(ENC_IN_RIGHT_B);
- 
-  if (val == LOW) {
-    Direction_right = false; // Reverse
-  }
-  else {
-    Direction_right = true; // Forward
-  }
-   
-  if (Direction_right) {
-     
-    if (right_wheel_tick_count.data == encoder_maximum) {
-      right_wheel_tick_count.data = encoder_minimum;
-    }
-    else {
-      right_wheel_tick_count.data++;  
-    }    
-  }
-  else {
-    if (right_wheel_tick_count.data == encoder_minimum) {
-      right_wheel_tick_count.data = encoder_maximum;
-    }
-    else {
-      right_wheel_tick_count.data--;  
-    }   
-  }
-}
- 
-// Increment the number of ticks
-void left_wheel_tick() {
- 
- // Read the value for the encoder for the right wheel
-  int val = digitalRead(ENC_IN_LEFT_B);
-  
-  if (val == LOW) {
-    Direction_left = true; // Reverse
-  }
-  else {
-    Direction_left = false; // Forward
-  }
-   
-  if (Direction_left) {
-    if (left_wheel_tick_count.data == encoder_maximum) {
-      left_wheel_tick_count.data = encoder_minimum;
-    }
-    else {
-      left_wheel_tick_count.data++;  
-    }  
-  }
-  else {
-    if (left_wheel_tick_count.data == encoder_minimum) {
-      left_wheel_tick_count.data = encoder_maximum;
-    }
-    else {
-      left_wheel_tick_count.data--;  
-    }   
-  }
-}
-
-// calc delta ticks
-int calc_ticks(int current_ticks ,int last_ticks) {
-  if (((current_ticks>0)&&(last_ticks<0))&&(current_ticks - last_ticks)> encoder_maximum) {  //passing Reverse from min to max
-            return ((current_ticks - encoder_maximum)+(encoder_minimum-last_ticks));
-  }  else if (((current_ticks<0)&&(last_ticks>0))&&(current_ticks - last_ticks)<encoder_minimum) {    //passing Forward from max to min
-            return ((current_ticks - encoder_minimum)+(encoder_maximum-last_ticks));
-  }  else {
-            return current_ticks - last_ticks ;
-  }
-}
-
 
 /////////////////////// Pwm subscribing ////////////////////////////
 
@@ -388,33 +314,9 @@ void set_pwm_values(int pwm_val ,int pwm_pin ,int in1_pin ,int in2_pin) {
  }
 }
 
-
 // Set up ROS subscriber to the pwm command
 ros::Subscriber<std_msgs::Int16> subLeftPwm("/left_motor_pwm" , &set_pwm_left);
 ros::Subscriber<std_msgs::Int16> subRightPwm("/right_motor_pwm" , &set_pwm_right);
-///////////////////////velocity calculation////////////////
-void readEncoder(){
-  // Read encoder B when ENCA rises
-  int b = digitalRead(ENC_IN_LEFT_B);
-  int increment = 0;
-  if(b>0){
-    // If B is high, increment forward
-    increment = -1;
-  }
-  else{
-    // Otherwise, increment backward
-    increment = 1;
-  }
-  pos_i = pos_i + increment;
-
-  // Compute velocity with method 2
-  long currT = micros();
-  float deltaT = ((float) (currT - prevT_i))/1.0e6;
-  velocity_i = increment/deltaT;
-  prevT_i = currT;
-}
-
-
 
 
 /////////////////////// setup ////////////////////////////
@@ -424,10 +326,7 @@ void setup() {
   pingTimer[0] = millis() + 75;
   for (uint8_t i = 1; i < SONAR_NUM; i++)
     pingTimer[i] = pingTimer[i - 1] + PING_INTERVAL;
- 
   
-  
- 
   // init Range msg
   sensor_msg_init(range_front,"/sonar_front");
   sensor_msg_init(range_back, "/sonar_back");
@@ -436,21 +335,16 @@ void setup() {
   sensor_msg_init(range_front_right,"/sonar_front_right");
   sensor_msg_init(range_front_left, "/sonar_front_left");
 
- 
- 
   // Set pin states of the encoder
   pinMode(ENC_IN_LEFT_A , INPUT_PULLUP);
   pinMode(ENC_IN_LEFT_B , INPUT);
+  
   pinMode(ENC_IN_RIGHT_A , INPUT_PULLUP);
-  pinMode(ENC_IN_RIGHT_B , INPUT);
- 
-  // Every time the pin goes high, this is a tick
-//  attachInterrupt(digitalPinToInterrupt(ENC_IN_LEFT_A), left_wheel_tick, RISING);
-//  attachInterrupt(digitalPinToInterrupt(ENC_IN_RIGHT_A), right_wheel_tick, RISING);
+  pinMode(ENC_IN_RIGHT_B , INPUT); 
+  
+  attachInterrupt(digitalPinToInterrupt(ENC_IN_LEFT_A),readEncoder_left,RISING);
+  attachInterrupt(digitalPinToInterrupt(ENC_IN_RIGHT_A),readEncoder_right,RISING);
 
-////////velocity calculation////////
-  attachInterrupt(digitalPinToInterrupt(ENC_IN_LEFT_A),readEncoder,RISING);
-   
   // Motor control pins setup
   // left motor pin setup
   pinMode(pwmA, OUTPUT);
@@ -472,21 +366,21 @@ void setup() {
   analogWrite(pwmB, 0);
  
   // ROS Setup
-  nh.getHardware()->setBaud(115200); ///changed from 57600
+  nh.getHardware()->setBaudleft_wheel_tick_count(115200); ///changed from 57600
   nh.initNode();
+
   nh.advertise(rightPub);
-  nh.advertise(encoder_right_delta_raw_Pub);
   nh.advertise(vr_current_filter_Pub);
   nh.advertise(vr_current_raw_Pub);
 
-
   nh.advertise(leftPub);
-  nh.advertise(encoder_left_delta_raw_Pub);
   nh.advertise(vl_current_filter_Pub);
   nh.advertise(vl_current_raw_Pub);
 
+  nh.advertise(distance_Pub);
   nh.subscribe(subLeftPwm);
   nh.subscribe(subRightPwm);
+  
   nh.advertise(pub_range_front);
   nh.advertise(pub_range_back);
   nh.advertise(pub_range_right);
@@ -498,36 +392,51 @@ void setup() {
 void loop() {
 
   unsigned long currentMillis = millis();
+  
   if (currentMillis-previousMillis >= 33){
-    // read the position in an atomic block
+  // read the position in an atomic block
   // to avoid potential misreads
-    int pos = 0;
-    float velocity2 = 0;
-    ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-      pos = pos_i;
-      velocity2 = velocity_i;
-    }
+    int pos_right = 0;
+    int pos_left = 0;
 
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+      pos_left = pos_i_left;
+      pos_right = pos_i_right;
+    }
+    
   // Compute velocity with method 1
     long currT = micros();
-    float deltaT = ((float) (currT-prevT))/1.0e6;
-    float velocity1 = (pos - posPrev)/deltaT;
-    posPrev = pos;
+    float deltaT = ((float) (currT-prevT))/1.0e6; // [seconds]
+    
+    float vr_count = (pos_right - posPrev_right)/deltaT; // [count/sec]
+    posPrev_right = pos_right; 
+    float vl_count = (pos_left - posPrev_left)/deltaT; // [count/sec]
+    posPrev_left = pos_left; 
+
     prevT = currT;
 
   // Convert count/s to RPM
-    float v1 = velocity1/480*60.0;
-    float v2 = velocity2/480*60.0;
+    float vl_rpm = vl_count/N*60.0; // [count/sec]/([count/rev]*[min/sec])
+    float vr_rpm = vr_count/N*60.0; // [count/sec]/([count/rev]*[min/sec])
 
-  // Low-pass filter (25 Hz cutoff)
-    v1Filt = 0.854*v1Filt + 0.0728*v1 + 0.0728*v1Prev;
-    v1Prev = v1;
-    v2Filt = 0.854*v2Filt + 0.0728*v2 + 0.0728*v2Prev;
-    v2Prev = v2;
-
-    delay(1);
-  //(1/Sample_Freq)*1000){ /// needs to check the general sintext!
+  // Convert RPM to Linear speed of the wheels
+    float vl_curr_raw = (vl_rpm * 2 * PI * R) / 60   ; // ([Rev/min]*[rad/Rev]*[meters])/[sec/min]
+    float vr_curr_raw = (vr_rpm * 2 * PI * R) / 60   ; // ([Rev/min]*[rad/Rev]*[meters])/[sec/min]
   
+  // Low-pass filter (25 Hz cutoff) <<< check values
+    vl_curr_filter = 0.854*vl_curr_filter + 0.0728*vl_curr_raw + 0.0728*vl_prev_raw;
+    vl_prev_raw = vl_curr_raw;
+
+    vr_curr_filter = 0.854*vr_curr_filter + 0.0728*vr_curr_raw + 0.0728*vr_prev_raw;
+    vr_prev_raw = vr_curr_raw;
+    
+  
+  // calc distances
+
+    float dr = vr_curr_filter*deltaT ; // right wheel distance passed [meter/sec]*[sec] 
+    float dl = vl_curr_filter*deltaT ; // left wheel distance passed [meter/sec]*[sec]
+    float dc = (dr + dl)/2 ; // [meter]
+
   //if (isTimeForLoop(LOOPING)) {      // ---> need to check
     sensorCycle();
     oneSensorCycle();
@@ -546,9 +455,39 @@ void loop() {
     //range_left.range  = leftSensor;
     //range_front_right.range  = front_rightSensor;
     //range_front_left.range  = front_leftSensor;
+        
     
+    //////////// set ROS msgs //////////////
+
+    // set encoder msgs [counts]
+    left_wheel_tick_count.data = pos_left ; 
+    right_wheel_tick_count.data = pos_right ; 
+
+    // set velocities msgs [m/s]
+    // raw
+    vl_current_raw.data = vl_curr_raw;
+    vr_current_raw.data = vr_curr_raw;
     
+    // filter
+    vr_current_filter.data = vr_curr_filter;
+    vl_current_filter.data = vl_curr_filter;
     
+
+    // set distance msgs [meter]
+    distance.data = dc ;
+      
+     // Stop the car if there are no pwm messages in the last 3 sec
+    if((millis()/1000) - left_lastPwmReceived > 3) {   ////// changed to 3 from 1 sec
+      pwmLeftReq = 0;
+      analogWrite(pwmA, 0);
+    }
+    if((millis()/1000) - right_lastPwmReceived > 3) {   ////// changed to 3 from 1 sec
+      pwmRightReq = 0;
+      analogWrite(pwmB, 0);
+    }
+    
+    //////////  publishing to topics ///////
+
     range_front.header.stamp = nh.now();
     range_back.header.stamp = nh.now();
     range_right.header.stamp = nh.now();
@@ -562,93 +501,22 @@ void loop() {
     pub_range_left.publish(&range_left);
     pub_range_front_right.publish(&range_front_right);
     pub_range_front_left.publish(&range_front_left);
-  
     
-  //}
-  
-    // Record the time
-    
-   
-    // If the time interval has passed, publish the number of ticks,
-    // and set pwm
-   // if (currentMillis - previousMillis > interval) {
-       
-    
- 
-    
-    // calc delta ticks
-    encoder_right_current_ticks = right_wheel_tick_count.data;
-    encoder_right_delta.data = calc_ticks(encoder_right_current_ticks ,encoder_right_last_ticks);
-    
-    encoder_left_current_ticks = left_wheel_tick_count.data;
-    encoder_left_delta.data = calc_ticks(encoder_left_current_ticks ,encoder_left_last_ticks);
-
-    // calc distance moved [m]    
-    dr =  (2*PI*R*encoder_right_delta.data)/N;
-    dl =  (2*PI*R*encoder_left_delta.data)/N; 
-
-    // calc the time in sec [s]
-    dt = (float) (currentMillis - previousMillis)/1000;
-
-    // calc velocities [m/s]
-    vr_current_raw.data = dr/dt;
-    vl_current_raw.data = dl/dt;
-
-    // filtering with low_pass filter 
-    vr_curr_filter = 0.34*vr_curr_filter + 0.33*vr_current_raw.data +0.33*vr_prev_raw;
-
-
-     
-    vr_current_filter.data = vr_curr_filter;
-
-
-
-    float v1filt_linear = (v1Filt * 2 * PI * R) / 60   ;
-    vl_curr_filter = 0.34*vl_curr_filter + 0.33*vl_current_raw.data +0.33*vl_prev_raw;
-    vl_current_filter.data = v1filt_linear;
-    
-    // update filtered distances
-    dr = vr_curr_filter*dt ; 
-    dl = vl_curr_filter*dt ; 
-
-    
-
-
-
-
-    
-      
-     // Stop the car if there are no pwm messages in the last 1 sec
-    if((millis()/1000) - left_lastPwmReceived > 2) {   ////// changed to 2 from 1 sec
-      pwmLeftReq = 0;
-      analogWrite(pwmA, 0);
-    }
-    if((millis()/1000) - right_lastPwmReceived > 2) {   ////// changed to 2 from 1 sec
-      pwmRightReq = 0;
-      analogWrite(pwmB, 0);
-    }
-    
-    
-    // update prev
-    encoder_right_last_ticks = encoder_right_current_ticks;
-    encoder_left_last_ticks = encoder_left_current_ticks;
-    vr_prev_raw = vr_current_raw.data;
-    vl_prev_raw = vl_current_raw.data;
-        // publishing
-    
-    
-    previousMillis = currentMillis;
     
     leftPub.publish( &left_wheel_tick_count ); 
     rightPub.publish( &right_wheel_tick_count );
     
-    encoder_right_delta_raw_Pub.publish( &encoder_right_delta);
-    encoder_left_delta_raw_Pub.publish( &encoder_left_delta);
     vr_current_raw_Pub.publish( &vr_current_raw);
     vr_current_filter_Pub.publish( &vr_current_filter);
     vl_current_raw_Pub.publish( &vl_current_raw);
     vl_current_filter_Pub.publish( &vl_current_filter);
+    
+    distance_Pub.publish( &distance);
+    
+    
+    // update previous time
     //startTimer();
+    previousMillis = currentMillis;
   } 
  nh.spinOnce(); 
 }
