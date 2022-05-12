@@ -49,11 +49,11 @@ class Controller:
 
        
         self.vr_current_filter_sub = rospy.Subscriber("/velocity/vr_current/filter",Float32,self.vr_current_filter_callback)
-        self.vr_current_raw_sub = rospy.Publisher("/velocity/vr_current/raw",Float32,self.vr_current_raw_callback)
+        self.vr_current_raw_sub = rospy.Subscriber("/velocity/vr_current/raw",Float32,self.vr_current_raw_callback)
         self.vl_current_filter_sub = rospy.Subscriber("/velocity/vl_current/filter",Float32,self.vl_current_filter_callback)
-        self.vl_current_raw_sub = rospy.Publisher("/velocity/vl_current/raw",Float32,self.vl_current_raw_callback)
+        self.vl_current_raw_sub = rospy.Subscriber("/velocity/vl_current/raw",Float32,self.vl_current_raw_callback)
 
-        self.dc_sub = rospy.Publisher("/distance/dc",Float32,self.dc_callback)
+        self.dc_sub = rospy.Subscriber("/distance/dc",Float32,self.dc_callback)
 
         self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float32,queue_size=100)
         self.vl_target_publisher = rospy.Publisher("/velocity/vl_target",Float32,queue_size=100)
