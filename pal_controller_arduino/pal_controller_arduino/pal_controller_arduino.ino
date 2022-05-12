@@ -432,7 +432,6 @@ void loop() {
     
   
   // calc distances
-
     float dr = vr_curr_filter*deltaT ; // right wheel distance passed [meter/sec]*[sec] 
     float dl = vl_curr_filter*deltaT ; // left wheel distance passed [meter/sec]*[sec]
     float dc = (dr + dl)/2 ; // [meter]

@@ -42,18 +42,18 @@ class Controller:
         ## init publisher and subscribers
         self.left_pwm_publisher = rospy.Publisher("/left_motor_pwm",Int16,queue_size=100) 
         self.right_pwm_publisher = rospy.Publisher("/right_motor_pwm",Int16,queue_size=100) 
-        self.left_encoder_sub = rospy.Subscriber("/encoder_left_ticks",Int16,self.leftEncoder_callback)
-        self.right_encoder_sub = rospy.Subscriber("/encoder_right_ticks",Int16,self.rightEncoder_callback)
+        # self.left_encoder_sub = rospy.Subscriber("/encoder_left_ticks",Int16,self.leftEncoder_callback)
+        # self.right_encoder_sub = rospy.Subscriber("/encoder_right_ticks",Int16,self.rightEncoder_callback)
         self.cmd_vel_sub = rospy.Subscriber("/cmd_vel",Twist,self.control_vel_callback)
         self.odom_publisher = rospy.Publisher("/odom" , Odometry , queue_size = 1000)
 
-        self.encoder_right_delta_raw_sub = rospy.Subscriber("/encoder_right_delta",Int16,self.encoder_right_delta_raw_callback)
-        self.encoder_left_delta_raw_sub = rospy.Subscriber("/encoder_left_delta",Int16,self.encoder_left_delta_raw_callback)
-
+       
         self.vr_current_filter_sub = rospy.Subscriber("/velocity/vr_current/filter",Float32,self.vr_current_filter_callback)
         self.vr_current_raw_sub = rospy.Publisher("/velocity/vr_current/raw",Float32,self.vr_current_raw_callback)
         self.vl_current_filter_sub = rospy.Subscriber("/velocity/vl_current/filter",Float32,self.vl_current_filter_callback)
         self.vl_current_raw_sub = rospy.Publisher("/velocity/vl_current/raw",Float32,self.vl_current_raw_callback)
+
+        self.dc_sub = rospy.Publisher("/distance/dc",Float32,self.dc_callback)
 
         self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float32,queue_size=100)
         self.vl_target_publisher = rospy.Publisher("/velocity/vl_target",Float32,queue_size=100)
@@ -64,10 +64,6 @@ class Controller:
         self.set_pwm_service = rospy.Service('motors/set_pwm', PwmVal , self.set_pwm_callback)
         self.motors_stop_service = rospy.Service('motors/stop', SetBool , self.stop_callback)
 
-        # init encoder max and min
-        self.encoder_minimum = -32768
-        self.encoder_maximum = 32767
-
         ## init time variables 
         self.current_time = rospy.Time.now()
         self.last_time = rospy.Time.now()
@@ -76,23 +72,16 @@ class Controller:
         ## left params
         self.pwm_left_out =  Int16()
         self.pwm_left_out.data = 0        
-        self.current_left_encoder_value = 0
-        self.last_left_encoder_value = 0
-        self.encoder_left_delta_raw = 0
 
 
         ## right params
         self.pwm_right_out =  Int16()
         self.pwm_right_out.data = 0      
-        self.last_right_encoder_value = 0
-        self.current_right_encoder_value = 0
-        self.encoder_right_delta_raw = 0
 
 
         # init kinematics parameters
         self.R = 0.125/2    
         self.L = 0.472       # need to update
-        self.N = 480       
         self.x = 0      
         self.y = 0 
         self.theta = 0
@@ -106,7 +95,9 @@ class Controller:
         self.cmd_vel = Twist()
         self.vr_target=0
         self.vl_target=0
-
+        
+        ## init distance robot passed
+        self.dc = 0
 
         ## init odom and tf
         self.odom = Odometry()
@@ -134,9 +125,6 @@ class Controller:
         self.vl_target = (2*self.cmd_vel.linear.x - self.cmd_vel.angular.z * self.L)/2
         
             
-        
-    
-
     def publish(self):
         
         # publish pwm
@@ -196,12 +184,6 @@ class Controller:
 
         self.pwm_left_out.data = 0
         self.pwm_right_out.data = 0
-    
-    def encoder_right_delta_raw_callback(self,msg):
-        self.encoder_right_delta_raw = msg.data
-        
-    def encoder_left_delta_raw_callback(self,msg):
-        self.encoder_left_delta_raw = msg.data
 
     
     def vr_current_filter_callback(self,msg):
@@ -210,52 +192,37 @@ class Controller:
     def vr_current_raw_callback(self,msg):
         self.vr_current_raw = msg.data
 
+    
+    def dc_callback(self,msg):
+        self.dc = msg.data
+
+
     def vl_current_filter_callback(self,msg):
         self.vl_current_filter = msg.data
     
     def vl_current_raw_callback(self,msg):
         self.vl_current_raw = msg.data
 
-    def leftEncoder_callback(self,msg):
-        self.current_left_encoder_value = msg.data
+    # def leftEncoder_callback(self,msg):
+    #     self.current_left_encoder_value = msg.data
     
-    def rightEncoder_callback(self,msg):
-        self.current_right_encoder_value = msg.data
+    # def rightEncoder_callback(self,msg):
+    #     self.current_right_encoder_value = msg.data
 
     def update_pose(self):
-            ## calc encoder left ticks
-            delta_lticks_raw = self.encoder_left_delta_raw
-            rospy.loginfo("leftt delta ticks raw [ticks] = %s" , delta_lticks_raw)
-             ## calc encoder right ticks
-            delta_rticks_raw = self.encoder_right_delta_raw
-            rospy.loginfo("right delta ticks raw [ticks] = %s" , delta_rticks_raw)
 
-
-            ## will be update << calc on the arduino
-            ## calc distance of wheels movment
-            dl =  2*pi*self.R*delta_lticks_raw/self.N 
-            rospy.loginfo("left wheel distance [m] = %s" ,dl)
-            dr = 2*pi*self.R*delta_rticks_raw/self.N
-            rospy.loginfo("right wheel distance [m] = %s" ,dr)
-            dc = (dl + dr)/2
-            rospy.loginfo("total wheel distance [m] = %s" ,dc)
-
-            ## calc dt
             self.current_time = rospy.Time.now()
-            self.dt = (self.current_time - self.last_time).to_sec()
-            rospy.loginfo("dt [s] = %s" , self.dt)
-            
-            ## calc whells velocities
             
             v =  (self.vl_current_filter + self.vr_current_filter )/2 # linear
 
             rospy.loginfo("linear velocity [m/s] = %s" , v)
+            
             w = (self.vr_current_filter  - self.vl_current_filter)/self.L # angular
             rospy.loginfo("angular velocity [rad/s] = %s" , w)
 
             ## update movments relate to axises
-            delta_x = dc * cos(self.theta)
-            delta_y = dc * sin(self.theta)
+            delta_x = self.dc * cos(self.theta)
+            delta_y = self.dc * sin(self.theta)
             delta_theta = w
             self.x += delta_x
             self.y += delta_y
@@ -291,16 +258,13 @@ class Controller:
 
 
 
-            #self.pwm_right_out.data = direction_r*self.pal_control.compute(direction_r_current*self.vr_current_filter,direction_r*self.vr_target, 0.033) #fill dt as the arduino sample time
+            self.pwm_right_out.data = direction_r*self.pal_control.compute(direction_r_current*self.vr_current_filter,direction_r*self.vr_target, 0.033) #fill dt as the arduino sample time
             self.pwm_left_out.data = direction_l*self.pal_control.compute(direction_l_current*self.vl_current_filter,direction_l*self.vl_target, 0.033) #fill dt as the arduino sample time
             
-            
-            
-            #self.pwm_right_out.data = 70 + 60*sin(1*pi*(time.time()-self.t_0)) #fill dt as the arduino sample time
-            #self.pwm_left_out.data = 70 + 60*sin(1*pi*(time.time()-self.t_0)) #fill dt as the arduino sample time
+            #self.pwm_right_out.data = 70 + 60*sin(1*pi*(time.time()-self.t_0)) 
+            #self.pwm_left_out.data = 70 + 60*sin(1*pi*(time.time()-self.t_0)) 
 
-            # reset time and encoders current+last variables
-            self.last_time = self.current_time
+            
             
             print("\n")
 
