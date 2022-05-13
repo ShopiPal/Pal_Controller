@@ -366,7 +366,7 @@ void setup() {
   analogWrite(pwmB, 0);
  
   // ROS Setup
-  nh.getHardware()->setBaudleft_wheel_tick_count(115200); ///changed from 57600
+  nh.getHardware()->setBaud(115200); ///changed from 57600
   nh.initNode();
 
   nh.advertise(rightPub);
@@ -434,7 +434,7 @@ void loop() {
   // calc distances
     float dr = vr_curr_filter*deltaT ; // right wheel distance passed [meter/sec]*[sec] 
     float dl = vl_curr_filter*deltaT ; // left wheel distance passed [meter/sec]*[sec]
-    float dc = (dr + dl)/2 ; // [meter]
+    float dc = (dr + dl)/2 ; // total distance robot passed [meter]
 
   //if (isTimeForLoop(LOOPING)) {      // ---> need to check
     sensorCycle();
