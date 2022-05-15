@@ -1,7 +1,7 @@
 <launch>
     <node name="serial_node"        pkg="rosserial_python"      type="serial_node.py">
     <param name="port"              type="string"               value="/dev/ttyACM0"/>
-    <param name="baud"              type="int"                  value="500000"/>
+    <param name="baud"              type="int"                  value="115200"/>
     </node>
 
     <node name="pal_controller_node"        pkg="pal_controller_pkg"      type="pal_controller_node.py">

@@ -391,9 +391,14 @@ void setup() {
 
 void loop() {
 
-  unsigned long currentMillis = millis();
+  //unsigned long currentMillis = millis();
+  long currT = micros();
+  float deltaT = ((float) (currT-prevT))/1.0e6; // [seconds]
   
-  if (currentMillis-previousMillis >= 33){
+  
+  //if (currentMillis-previousMillis >= 10){
+  if (deltaT >= 0.01){  
+    Serial.println(deltaT);
   // read the position in an atomic block
   // to avoid potential misreads
     int pos_right = 0;
@@ -405,15 +410,16 @@ void loop() {
     }
     
   // Compute velocity with method 1
-    long currT = micros();
-    float deltaT = ((float) (currT-prevT))/1.0e6; // [seconds]
+    
+    
+    
     
     float vr_count = (pos_right - posPrev_right)/deltaT; // [count/sec]
     posPrev_right = pos_right; 
     float vl_count = (pos_left - posPrev_left)/deltaT; // [count/sec]
     posPrev_left = pos_left; 
 
-    prevT = currT;
+    
 
   // Convert count/s to RPM
     float vl_rpm = vl_count/N*60.0; // [count/sec]/([count/rev]*[min/sec])
@@ -424,10 +430,10 @@ void loop() {
     float vr_curr_raw = (vr_rpm * 2 * PI * R) / 60   ; // ([Rev/min]*[rad/Rev]*[meters])/[sec/min]
   
   // Low-pass filter (25 Hz cutoff) <<< check values
-    vl_curr_filter = 0.854*vl_curr_filter + 0.0728*vl_curr_raw + 0.0728*vl_prev_raw;
+    vl_curr_filter = 0.9*vl_curr_filter + 0.05*vl_curr_raw + 0.05*vl_prev_raw;
     vl_prev_raw = vl_curr_raw;
 
-    vr_curr_filter = 0.854*vr_curr_filter + 0.0728*vr_curr_raw + 0.0728*vr_prev_raw;
+    vr_curr_filter = 0.8278*vr_curr_filter + 0.0861*vr_curr_raw + 0.0861*vr_prev_raw;
     vr_prev_raw = vr_curr_raw;
     
   
@@ -515,7 +521,8 @@ void loop() {
     
     // update previous time
     //startTimer();
-    previousMillis = currentMillis;
+    //previousMillis = currentMillis;
+    prevT = currT;
   } 
  nh.spinOnce(); 
 }

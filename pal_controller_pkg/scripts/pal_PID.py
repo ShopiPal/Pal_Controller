@@ -12,19 +12,19 @@ class PID(object):
         self.kp = KP
         self.ki = KI
         self.kd = KD
-        self.kb = 0.4
+        self.kb = 0.5
         self.error = 0
         self.integral_error = 0
         self.derivative_error = 0
         self.last_error = 0
         self.output = 0
-        self.ERROR_MIN = 0.05
+        self.ERROR_MIN = 0.02
 
         self.prop_term = 0
         self.integral_term = 0 
 
         self.derivative_term_filtered = 0
-        self.tau = 0.4
+        self.tau = 0.035
     
     def map_range(self, x, in_min, in_max, out_min, out_max):
         return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
@@ -48,24 +48,27 @@ class PID(object):
 
     def compute(self,current_speed,target_speed,time_interval):
         self.error = target_speed - current_speed
-        self.prop_term = self.kp*self.error
-        if np.abs(self.error) < self.ERROR_MIN:
-            self.error = 0
+        
         
         self.derivative_error = (self.error-self.last_error)/time_interval
         self.derivative_term = self.kd*self.derivative_error
-        # self.derivative_term_filtered = (
-        #     (self.tau/(self.tau+ time_interval))*self.derivative_term_filtered +
-        #     (time_interval/(self.tau+time_interval))*self.derivative_term
-        # )
+        self.derivative_term_filtered = (
+             (self.tau/(self.tau + time_interval))*self.derivative_term_filtered +
+             (time_interval/(self.tau+time_interval))*self.derivative_term
+         )
         self.last_error = self.error
         
         self.integral_error += self.error * time_interval
         self.integral_term = self.ki*self.integral_error
-        #self.integral_term = self.windup_handle()
+        self.integral_term = self.windup_handle()
+        
+        
+        if np.abs(self.error) < self.ERROR_MIN:
+           self.error = 0
+        self.prop_term = self.kp*self.error
         
         v_output = self.prop_term + self.integral_term + self.derivative_term
-        #v_output = self.prop_term + self.integral_term + self.derivative_term_filtered
+        v_output = self.prop_term + self.integral_term + self.derivative_term_filtered
         v_output = self.saturate(v_output)
 
         self.output = int(self.map_range(v_output,MIN_V ,MAX_V,MIN_PWM,MAX_PWM))

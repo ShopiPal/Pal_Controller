@@ -3,7 +3,7 @@
 # import libraries & ros plugins & msgs
 import numpy as np
 import rospy
-from math import pi , cos , sin 
+from math import pi , cos , sin , asin
 from std_msgs.msg import Float64 ,Float32 , Int16
 from pal_controller_pkg.srv import PwmVal , PwmValResponse
 from std_srvs.srv import SetBool , SetBoolResponse
@@ -13,6 +13,7 @@ import tf
 from tf.broadcaster import TransformBroadcaster
 from pal_PID import PID
 import time
+
 
 ''' 
 creation class of type 'controller'
@@ -84,7 +85,7 @@ class Controller:
         self.L = 0.472       # need to update
         self.x = 0      
         self.y = 0 
-        self.theta = 0
+        self.theta = 0.00000000001
 
         ## init cmd_vel
         self.vr_current_filter = 0
@@ -108,7 +109,8 @@ class Controller:
         rospy.on_shutdown(self.shutdownhook)
 
         ## PID init
-        self.pal_control = PID(1 ,30 ,0.05) ## need to tune
+        self.pal_control_l = PID(2 ,15 ,0.5) ## need to tune
+        self.pal_control_r = PID(2 ,15 ,0.5)
         
        # self.update_pose()
 
@@ -217,9 +219,14 @@ class Controller:
 
             rospy.loginfo("linear velocity [m/s] = %s" , v)
             
-            w = (self.vr_current_filter  - self.vl_current_filter)/self.L # angular
+            w = asin((self.vr_current_filter  - self.vl_current_filter)*0.01/self.L) # angular
             rospy.loginfo("angular velocity [rad/s] = %s" , w)
 
+            if (w > pi):
+                w = w - 2*pi
+            if ( w < -pi ):
+                w = w + 2*pi
+                    
             ## update movments relate to axises
             delta_x = self.dc * cos(self.theta)
             delta_y = self.dc * sin(self.theta)
@@ -231,10 +238,10 @@ class Controller:
             ## handle with theta limits
             if (self.theta > pi):
                 self.theta = self.theta - 2*pi
-            if (self.theta <= -pi ):
+            if (self.theta < -pi ):
                 self.theta = self.theta + 2*pi
             rospy.loginfo("theta [rad] = %s" , self.theta)
-
+#
             odom_quat = tf.transformations.quaternion_from_euler(0,0,self.theta)
 
 
@@ -258,8 +265,8 @@ class Controller:
 
 
 
-            self.pwm_right_out.data = direction_r*self.pal_control.compute(direction_r_current*self.vr_current_filter,direction_r*self.vr_target, 0.033) #fill dt as the arduino sample time
-            self.pwm_left_out.data = direction_l*self.pal_control.compute(direction_l_current*self.vl_current_filter,direction_l*self.vl_target, 0.033) #fill dt as the arduino sample time
+            self.pwm_right_out.data = direction_r*self.pal_control_r.compute(direction_r_current*self.vr_current_filter,direction_r*self.vr_target, 0.01) #fill dt as the arduino sample time
+            self.pwm_left_out.data = direction_l*self.pal_control_l.compute(direction_l_current*self.vl_current_filter,direction_l*self.vl_target, 0.01) #fill dt as the arduino sample time
             
             #self.pwm_right_out.data = 70 + 60*sin(1*pi*(time.time()-self.t_0)) 
             #self.pwm_left_out.data = 70 + 60*sin(1*pi*(time.time()-self.t_0)) 
@@ -290,7 +297,7 @@ Loop:   update pose
 if __name__ == '__main__':
     rospy.init_node('pal_controller_node', anonymous=True)    
     pal_control = Controller()
-    rate = rospy.Rate(5)
+    rate = rospy.Rate(30)
     while not pal_control.ctrl_c:
        pal_control.update_pose()
        pal_control.publish()
