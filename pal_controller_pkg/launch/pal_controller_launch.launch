@@ -1,4 +1,8 @@
 <launch>
+    <param name="robot_description" textfile="$(find pal_description_package)/urdf/pal_description_package.urdf" />
+
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
     <node name="serial_node"        pkg="rosserial_python"      type="serial_node.py">
     <param name="port"              type="string"               value="/dev/ttyACM0"/>
     <param name="baud"              type="int"                  value="115200"/>
