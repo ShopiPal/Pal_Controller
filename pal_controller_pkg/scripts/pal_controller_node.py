@@ -109,8 +109,8 @@ class Controller:
         rospy.on_shutdown(self.shutdownhook)
 
         ## PID init
-        self.pal_control_l = PID(2 ,15 ,0.5) ## need to tune
-        self.pal_control_r = PID(2 ,15 ,0.5)
+        self.pal_control_l = PID(16 ,52 ,0.75) ## need to tune
+        self.pal_control_r = PID(16 ,52 ,0.75)
         
        # self.update_pose()
 
