@@ -163,13 +163,13 @@ ros::Publisher pub_range_front_left("/sonar_front_left", &range_front_left);
 ////////////////// Encoder & Velocities variables and consts /////////////////
  
 // Encoder output to Arduino Interrupt pin. Tracks the tick count.
-#define ENC_IN_LEFT_A 18 //white
-#define ENC_IN_RIGHT_A 2 //white
+#define ENC_IN_LEFT_A 21 //yellow //19 //21
+#define ENC_IN_RIGHT_A 18 //white //2 //18
  
 // Other encoder output to Arduino to keep track of wheel direction
 // Tracks the direction of rotation.
-#define ENC_IN_LEFT_B 19 // yellow
-#define ENC_IN_RIGHT_B 3 // yellow 
+#define ENC_IN_LEFT_B 20 // white // 18 //20
+#define ENC_IN_RIGHT_B 19  // yellow //3 // 19
  
 //geometric params
 const int N = 480; // <<<check
@@ -241,11 +241,11 @@ void readEncoder_left(){
   int increment_left = 0;
   if(b_left>0){
     // If B is high, increment backward
-    increment_left = -1;
+    increment_left = 1;
   }
   else{
     // Otherwise, increment forward
-    increment_left = 1;
+    increment_left = -1;
   }
   pos_i_left = pos_i_left + increment_left;
 }
@@ -257,11 +257,11 @@ void readEncoder_right(){
   int increment_right = 0;
   if(b_right>0){
     // If B is high, increment forward
-    increment_right = 1;
+    increment_right = -1;
   }
   else{
     // Otherwise, increment backward 
-    increment_right = -1;
+    increment_right = 1;
   }
   pos_i_right = pos_i_right + increment_right;
 }
@@ -398,7 +398,7 @@ void loop() {
   
   //if (currentMillis-previousMillis >= 10){
   if (deltaT >= 0.01){  
-    Serial.println(deltaT);
+    //Serial.println(deltaT);
   // read the position in an atomic block
   // to avoid potential misreads
     int pos_right = 0;
@@ -433,7 +433,7 @@ void loop() {
     vl_curr_filter = 0.9*vl_curr_filter + 0.05*vl_curr_raw + 0.05*vl_prev_raw;
     vl_prev_raw = vl_curr_raw;
 
-    vr_curr_filter = 0.8278*vr_curr_filter + 0.0861*vr_curr_raw + 0.0861*vr_prev_raw;
+    vr_curr_filter = 0.9*vr_curr_filter + 0.05*vr_curr_raw + 0.05*vr_prev_raw;
     vr_prev_raw = vr_curr_raw;
     
   
