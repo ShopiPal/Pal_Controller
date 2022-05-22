@@ -219,6 +219,7 @@ class Controller:
 
             rospy.loginfo("linear velocity [m/s] = %s" , v)
             
+            #w = (self.vr_current_filter  - self.vl_current_filter)/self.L # angular
             w = asin((self.vr_current_filter  - self.vl_current_filter)*0.01/self.L) # angular
             rospy.loginfo("angular velocity [rad/s] = %s" , w)
 

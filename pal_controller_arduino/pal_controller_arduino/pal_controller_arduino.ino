@@ -200,6 +200,10 @@ long currentMillis = 0;
 long prevT = 0;
 
 ////////// Encoders & velocities & distance ROS topics //////
+std_msgs::Float32 angular; 
+ros::Publisher angular_Pub("/velocity/angular",&angular); 
+
+
 
 // right:
 // encoder:
@@ -257,11 +261,11 @@ void readEncoder_right(){
   int increment_right = 0;
   if(b_right>0){
     // If B is high, increment forward
-    increment_right = -1;
+    increment_right = 1;
   }
   else{
     // Otherwise, increment backward 
-    increment_right = 1;
+    increment_right = -1;
   }
   pos_i_right = pos_i_right + increment_right;
 }
