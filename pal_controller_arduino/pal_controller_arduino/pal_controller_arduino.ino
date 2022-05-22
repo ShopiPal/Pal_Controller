@@ -174,6 +174,9 @@ ros::Publisher pub_range_front_left("/sonar_front_left", &range_front_left);
 //geometric params
 const int N = 480; // <<<check
 const float R = 0.125/2;
+const float L = 0.472;
+const float distance_per_count = (2*PI*R)/N;
+
 
 // Encoders 
 // Use the "volatile" directive for variables
@@ -230,8 +233,11 @@ ros::Publisher vl_current_raw_Pub("/velocity/vl_current/raw",&vl_current_raw);
 
 ///// topic total distance of the robot
 
-std_msgs::Float32 distance; 
-ros::Publisher distance_Pub("/distance/dc",&distance);
+std_msgs::Float32 delta_distance_left; 
+ros::Publisher delta_distance_left_Pub("/delta_distance/dl",&delta_distance_left);
+
+std_msgs::Float32 delta_distance_right; 
+ros::Publisher delta_distance_right_Pub("/delta_distance/dr",&delta_distance_right);
 
 /////////////////////// encoders handle functions ////////////////
 // left:
@@ -377,7 +383,9 @@ void setup() {
   nh.advertise(vl_current_filter_Pub);
   nh.advertise(vl_current_raw_Pub);
 
-  nh.advertise(distance_Pub);
+  nh.advertise(delta_distance_left_Pub);
+  nh.advertise(delta_distance_right_Pub);
+  
   nh.subscribe(subLeftPwm);
   nh.subscribe(subRightPwm);
   
@@ -422,12 +430,12 @@ void loop() {
     
 
   // Convert count/s to RPM
-    float vl_rpm = vl_count/N*60.0; // [count/sec]/([count/rev]*[min/sec])
-    float vr_rpm = vr_count/N*60.0; // [count/sec]/([count/rev]*[min/sec])
+    //float vl_rpm = vl_count/N*60.0; // [count/sec]/([count/rev]*[min/sec])
+    //float vr_rpm = vr_count/N*60.0; // [count/sec]/([count/rev]*[min/sec])
 
   // Convert RPM to Linear speed of the wheels
-    float vl_curr_raw = (vl_rpm * 2 * PI * R) / 60   ; // ([Rev/min]*[rad/Rev]*[meters])/[sec/min]
-    float vr_curr_raw = (vr_rpm * 2 * PI * R) / 60   ; // ([Rev/min]*[rad/Rev]*[meters])/[sec/min]
+    float vl_curr_raw = vl_count*distance_per_count  ; // [count/sec]*[meters/count]
+    float vr_curr_raw = vr_count*distance_per_count   ; // [count/sec]*[meters/count]
   
   // Low-pass filter (25 Hz cutoff) <<< check values
     vl_curr_filter = 0.9*vl_curr_filter + 0.05*vl_curr_raw + 0.05*vl_prev_raw;
@@ -438,10 +446,11 @@ void loop() {
     
   
   // calc distances
-    float dr = vr_curr_filter*deltaT ; // right wheel distance passed [meter/sec]*[sec] 
-    float dl = vl_curr_filter*deltaT ; // left wheel distance passed [meter/sec]*[sec]
-    float dc = (dr + dl)/2 ; // total distance robot passed [meter]
-
+    float delta_right_distance = vr_curr_filter*deltaT ; // right wheel distance passed [meter/sec]*[sec] 
+    float delta_left_distance = vl_curr_filter*deltaT ; // left wheel distance passed [meter/sec]*[sec]
+    //float delta_distance = (delta_right_distance + delta_left_distance)/2 ; // total distance robot passed [meter]
+    //float delta_theta = (delta_right_distance - delta_left_distance)/L;
+    
   //if (isTimeForLoop(LOOPING)) {      // ---> need to check
     sensorCycle();
     oneSensorCycle();
@@ -479,7 +488,9 @@ void loop() {
     
 
     // set distance msgs [meter]
-    distance.data = dc ;
+    delta_distance_left.data = delta_left_distance ;
+    delta_distance_right.data = delta_right_distance ;
+
       
      // Stop the car if there are no pwm messages in the last 3 sec
     if((millis()/1000) - left_lastPwmReceived > 3) {   ////// changed to 3 from 1 sec
@@ -516,7 +527,9 @@ void loop() {
     vl_current_raw_Pub.publish( &vl_current_raw);
     vl_current_filter_Pub.publish( &vl_current_filter);
     
-    distance_Pub.publish( &distance);
+    delta_distance_left_Pub.publish( &delta_distance_left);
+    delta_distance_right_Pub.publish( &delta_distance_right);
+    
     
     
     // update previous time

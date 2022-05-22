@@ -54,7 +54,8 @@ class Controller:
         self.vl_current_filter_sub = rospy.Subscriber("/velocity/vl_current/filter",Float32,self.vl_current_filter_callback)
         self.vl_current_raw_sub = rospy.Subscriber("/velocity/vl_current/raw",Float32,self.vl_current_raw_callback)
 
-        self.dc_sub = rospy.Subscriber("/distance/dc",Float32,self.dc_callback)
+        self.delta_distance_left_sub = rospy.Subscriber("/delta_distance/dl",Float32,self.delta_distance_left_callback)
+        self.delta_distance_right_sub = rospy.Subscriber("/delta_distance/dr",Float32,self.delta_distance_right_callback)
 
         self.vr_target_publisher = rospy.Publisher("/velocity/vr_target",Float32,queue_size=100)
         self.vl_target_publisher = rospy.Publisher("/velocity/vl_target",Float32,queue_size=100)
@@ -98,7 +99,8 @@ class Controller:
         self.vl_target=0
         
         ## init distance robot passed
-        self.dc = 0
+        self.delta_distance_left = 0
+        self.delta_distance_right = 0
 
         ## init odom and tf
         self.odom = Odometry()
@@ -194,16 +196,14 @@ class Controller:
     def vr_current_raw_callback(self,msg):
         self.vr_current_raw = msg.data
 
-    
-    def dc_callback(self,msg):
-        self.dc = msg.data
-
-
     def vl_current_filter_callback(self,msg):
         self.vl_current_filter = msg.data
     
     def vl_current_raw_callback(self,msg):
         self.vl_current_raw = msg.data
+
+    def delta_distance_right_callback(self,msg):
+        self.delta_distance_right = msg.data
 
     # def leftEncoder_callback(self,msg):
     #     self.current_left_encoder_value = msg.data
@@ -219,18 +219,20 @@ class Controller:
 
             rospy.loginfo("linear velocity [m/s] = %s" , v)
             
-            w = asin((self.vr_current_filter  - self.vl_current_filter)*0.01/self.L) # angular
+            w = asin((self.vr_current_filter  - self.vl_current_filter)/self.L) # angular
             rospy.loginfo("angular velocity [rad/s] = %s" , w)
 
             if (w > pi):
                 w = w - 2*pi
             if ( w < -pi ):
                 w = w + 2*pi
-                    
+            
+            ## update movments
+            delta_distance = (self.delta_distance_right + self.delta_distance_left)/2
+            delta_theta = (self.delta_distance_right - self.delta_distance_left)/self.L
             ## update movments relate to axises
-            delta_x = self.dc * cos(self.theta)
-            delta_y = self.dc * sin(self.theta)
-            delta_theta = w
+            delta_x = delta_distance * cos(self.theta)
+            delta_y = delta_distance * sin(self.theta)
             self.x += delta_x
             self.y += delta_y
             self.theta += delta_theta
@@ -241,9 +243,8 @@ class Controller:
             if (self.theta < -pi ):
                 self.theta = self.theta + 2*pi
             rospy.loginfo("theta [rad] = %s" , self.theta)
-#
-            odom_quat = tf.transformations.quaternion_from_euler(0,0,self.theta)
 
+            odom_quat = tf.transformations.quaternion_from_euler(0,0,self.theta)
 
             # publish transform over tf
             self.odom_broadcaster.sendTransform(
@@ -290,7 +291,7 @@ class Controller:
 Main process implementation
 Init:   ros node
         Controller object
-        rate val = 5 hz
+        rate val = 30 hz
 Loop:   update pose
         publish topics
 '''
