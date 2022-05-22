@@ -263,11 +263,11 @@ void readEncoder_right(){
   int increment_right = 0;
   if(b_right>0){
     // If B is high, increment forward
-    increment_right = -1;
+    increment_right = 1;
   }
   else{
     // Otherwise, increment backward 
-    increment_right = 1;
+    increment_right = -1;
   }
   pos_i_right = pos_i_right + increment_right;
 }
@@ -334,12 +334,12 @@ void setup() {
     pingTimer[i] = pingTimer[i - 1] + PING_INTERVAL;
   
   // init Range msg
-  sensor_msg_init(range_front,"/sonar_front");
-  sensor_msg_init(range_back, "/sonar_back");
-  sensor_msg_init(range_right,"/sonar_right");
-  sensor_msg_init(range_left, "/sonar_left");
-  sensor_msg_init(range_front_right,"/sonar_front_right");
-  sensor_msg_init(range_front_left, "/sonar_front_left");
+  sensor_msg_init(range_front,"sonar_front");
+  sensor_msg_init(range_back, "sonar_back");
+  sensor_msg_init(range_right,"sonar_right");
+  sensor_msg_init(range_left, "sonar_left");
+  sensor_msg_init(range_front_right,"sonar_right_front");
+  sensor_msg_init(range_front_left, "sonar_left_front");
 
   // Set pin states of the encoder
   pinMode(ENC_IN_LEFT_A , INPUT_PULLUP);

@@ -111,8 +111,8 @@ class Controller:
         rospy.on_shutdown(self.shutdownhook)
 
         ## PID init
-        self.pal_control_l = PID(16 ,52 ,0.75) ## need to tune
-        self.pal_control_r = PID(16 ,52 ,0.75)
+        self.pal_control = PID(12 ,50 ,0.2) ## need to tune
+        
         
        # self.update_pose()
 
@@ -205,6 +205,9 @@ class Controller:
     def delta_distance_right_callback(self,msg):
         self.delta_distance_right = msg.data
 
+    def delta_distance_left_callback(self,msg):
+        self.delta_distance_left = msg.data
+
     # def leftEncoder_callback(self,msg):
     #     self.current_left_encoder_value = msg.data
     
@@ -213,24 +216,26 @@ class Controller:
 
     def update_pose(self):
 
+            # update time
             self.current_time = rospy.Time.now()
             
+            # calculate linear velocity
             v =  (self.vl_current_filter + self.vr_current_filter )/2 # linear
 
-            rospy.loginfo("linear velocity [m/s] = %s" , v)
-            
-            w = asin((self.vr_current_filter  - self.vl_current_filter)/self.L) # angular
-            rospy.loginfo("angular velocity [rad/s] = %s" , w)
+            # calculate angular velocity
+            w = (self.vr_current_filter  - self.vl_current_filter)/self.L # angular
+            #rospy.loginfo("angular velocity [rad/s] = %s" , w)
 
+            # handle with angular velocity in the range of [-pi, pi]
             if (w > pi):
                 w = w - 2*pi
             if ( w < -pi ):
                 w = w + 2*pi
             
-            ## update movments
+            ## calculate linear and angular movments of the center
             delta_distance = (self.delta_distance_right + self.delta_distance_left)/2
             delta_theta = (self.delta_distance_right - self.delta_distance_left)/self.L
-            ## update movments relate to axises
+            ## calculate movments relate to axises
             delta_x = delta_distance * cos(self.theta)
             delta_y = delta_distance * sin(self.theta)
             self.x += delta_x
@@ -242,8 +247,9 @@ class Controller:
                 self.theta = self.theta - 2*pi
             if (self.theta < -pi ):
                 self.theta = self.theta + 2*pi
-            rospy.loginfo("theta [rad] = %s" , self.theta)
+            #rospy.loginfo("theta [rad] = %s" , self.theta)
 
+            # update odom orientation as quaternion
             odom_quat = tf.transformations.quaternion_from_euler(0,0,self.theta)
 
             # publish transform over tf
@@ -251,36 +257,36 @@ class Controller:
                 (self.x , self.y , 0.),
                 odom_quat,
                 self.current_time,
-                "base_link",
+                "base_footprint",
                 "odom"
             )
 
             # publish odom over ros
             self.odom_msg_init(v,w,odom_quat)
 
-            ## set output pwm from the pid 
+            # get velocity direction
             direction_r = np.sign(self.vr_target) #1.0 for Forward, -1.0 for Revese
             direction_l = np.sign(self.vl_target) #1.0 for Forward, -1.0 for Revese
             direction_r_current = np.sign(self.vr_current_filter) #1.0 for Forward, -1.0 for Revese
             direction_l_current = np.sign(self.vl_current_filter) #1.0 for Forward, -1.0 for Revese
 
 
-
-            self.pwm_right_out.data = direction_r*self.pal_control_r.compute(direction_r_current*self.vr_current_filter,direction_r*self.vr_target, 0.01) #fill dt as the arduino sample time
-            self.pwm_left_out.data = direction_l*self.pal_control_l.compute(direction_l_current*self.vl_current_filter,direction_l*self.vl_target, 0.01) #fill dt as the arduino sample time
+            ## set output pwm from the pid 
+            self.pwm_right_out.data = direction_r*self.pal_control.compute(direction_r_current*self.vr_current_filter,direction_r*self.vr_target, 0.01) #fill dt as the arduino sample time
+            self.pwm_left_out.data = direction_l*self.pal_control.compute(direction_l_current*self.vl_current_filter,direction_l*self.vl_target, 0.01) #fill dt as the arduino sample time
             
             #self.pwm_right_out.data = 70 + 60*sin(1*pi*(time.time()-self.t_0)) 
             #self.pwm_left_out.data = 70 + 60*sin(1*pi*(time.time()-self.t_0)) 
 
             
             
-            print("\n")
+            #print("\n")
 
     def odom_msg_init(self,v,w,odom_quat):
         self.odom = Odometry()
         self.odom.header.stamp = self.current_time
         self.odom.header.frame_id = "odom"
-        self.odom.child_frame_id = "base_link"
+        self.odom.child_frame_id = "base_footprint"
         # set the position and orientation
         self.odom.pose.pose = Pose(Point(self.x,self.y,0) , Quaternion(*odom_quat))
         # set velocity
