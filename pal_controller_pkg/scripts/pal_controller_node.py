@@ -111,7 +111,7 @@ class Controller:
         rospy.on_shutdown(self.shutdownhook)
 
         ## PID init
-        self.pal_control = PID(12 ,50 ,0.2) ## need to tune
+        self.pal_control = PID(20,15,1.2) ## need to tune
         
         
        # self.update_pose()
