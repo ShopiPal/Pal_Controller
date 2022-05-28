@@ -1,0 +1,36 @@
+<launch>
+    <arg name="model" />
+    <param    name="robot_description"  textfile="$(find pal_description_package)/urdf/pal_description_package.urdf" />
+    
+    <!-- Transformation Configuration ... Setting Up the Relationships Between Coordinate Frames --> 
+    <node pkg="tf" type="static_transform_publisher" name="base_link_to_laser" args="0.24 0 0.44 3.14 0 0 base_link laser_frame 30" />
+    <node pkg="tf" type="static_transform_publisher" name="base_link_broadcaster" args="0 0 0.175 0 0 0 base_footprint base_link 30" />
+    <!-- odom to base_footprint transform will be provided by the robot_pose_ekf node -->
+    <!-- map to odom will be provided by the AMCL -->
+    <node pkg="tf" type="static_transform_publisher" name="map_to_odom" args="0 0 0 0 0 0 map odom 30" />
+    
+    <node  name="robot_state_publisher" pkg="robot_state_publisher"  type="robot_state_publisher" />
+
+    <node name="serial_node"        pkg="rosserial_python"      type="serial_node.py">
+        <param name="port"              type="string"               value="/dev/ttyACM0"/>
+        <param name="baud"              type="int"                  value="115200"/>
+    </node>
+
+    <node name="pal_controller_node"        pkg="pal_controller_pkg"      type="pal_controller_node.py">
+    </node>
+
+
+    <node name="rplidarNode"          pkg="rplidar_ros"  type="rplidarNode" output="screen">
+        <param name="serial_port"         type="string" value="/dev/ttyUSB0"/>
+        <param name="serial_baudrate"     type="int"    value="115200"/><!--A1/A2 -->
+        <!--param name="serial_baudrate"     type="int"    value="256000"--><!--A3 -->
+        <param name="frame_id"            type="string" value="laser_frame"/>
+        <param name="inverted"            type="bool"   value="false"/>
+        <param name="angle_compensate"    type="bool"   value="true"/>
+    </node>
+
+
+
+
+
+</launch>
