@@ -17,8 +17,6 @@
 #include <NewPing.h>
 #include <SimpleKalmanFilter.h>
 #include <sensor_msgs/Range.h>
-#define SONAR_NUM 3          //The number of sensors. // update to 6 
-#define MAX_DISTANCE 300     //Max distance to detect obstacles.
 
 //velocity calculation
 #include <util/atomic.h>
