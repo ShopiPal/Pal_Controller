@@ -39,25 +39,6 @@ methods:
 class Controller:
 
     def __init__(self):
-<<<<<<< HEAD
-        self.leftPwmPublisher = rospy.Publisher("/left_motor_pwm",Int16,queue_size=10)
-<<<<<<< HEAD
-        #self.rightPwmPublisher = rospy.Publisher("/right_pwm",Int16,queue_size=10)
-        self.leftEncoderSub = rospy.Subscriber("/encoder_left_ticks",Int16,self.leftEncoder_callback)
-        #self.rightEncoderSub = rospy.Subscriber("/encoder_right_ticks",Int16,rightEncoder_callback)
-
-        ## set parameters
-        
-        self.pwm_left_out =  Int16()
-        self.pwm_left_out.data = 200
-
-        self.left_encoder_value = 0
-
-=======
-        self.rightPwmPublisher = rospy.Publisher("/right_motor_pwm",Int16,queue_size=10)
-        self.leftEncoderSub = rospy.Subscriber("/encoder_left_ticks",Int16,self.leftEncoder_callback)
-        self.rightEncoderSub = rospy.Subscriber("/encoder_right_ticks",Int16,self.rightEncoder_callback)
-=======
         
         ## init publisher and subscribers
         self.left_pwm_publisher = rospy.Publisher("/left_motor_pwm",Int16,queue_size=100) 
@@ -80,7 +61,6 @@ class Controller:
         self.vl_target_publisher = rospy.Publisher("/velocity/vl_target",Float32,queue_size=100)
 
         self.t_0 = time.time()
->>>>>>> with_navigation_diff_calc
 
         ## init services
         self.set_pwm_service = rospy.Service('motors/set_pwm', PwmVal , self.set_pwm_callback)
@@ -98,25 +78,6 @@ class Controller:
 
         ## right params
         self.pwm_right_out =  Int16()
-<<<<<<< HEAD
-        self.pwm_right_out.data = 60
-        self.right_encoder_value = 0
->>>>>>> origin/controller
-    
-    def publish_pwm(self):
-          
-        #self.pwm_left_out.data =  palPID(.....)
-        #self.pwm_right_out.data = palPID(.....) 
-        
-<<<<<<< HEAD
-
-        self.leftPwmPublisher.publish(self.pwm_left_out)
-        #self.rightPwmPublisher.publish(pwm_right_out)
-=======
-        self.leftPwmPublisher.publish(self.pwm_left_out)
-        self.rightPwmPublisher.publish(self.pwm_right_out)
->>>>>>> origin/controller
-=======
         self.pwm_right_out.data = 0      
 
 
@@ -136,7 +97,6 @@ class Controller:
         self.cmd_vel = Twist()
         self.vr_target=0
         self.vl_target=0
->>>>>>> with_navigation_diff_calc
         
         ## init distance robot passed
         self.delta_distance_left = 0
