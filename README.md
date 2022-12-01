@@ -21,7 +21,7 @@ The main HW components which the robot contains are:
 - Wifi module for remote controling (ssh)
 
 The system architecture presented as follow:
-![]()
+![](https://github.com/ShopiPal/Pal_Controller/blob/main/media/System_Architecture.png)
 
 
 
