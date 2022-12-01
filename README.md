@@ -11,7 +11,7 @@ Main areas of the project were:
 
 # Hardware
 The main HW components which the robot contains are:
-- Nvidia Jetson Nano - function as Pal 'brain' for high-level tasks and running the robot operating system.
+- Nvidia Jetson Nano - function as Pal's 'brain' for high-level tasks and running the robot operating system.
 - Arduino Mega micro-controller -  responsible for low-level tasks such as reading the inputs from the robot sensors and send the outputs for the motors according to the logic and algorithms wich occur on the Jetson.  
 - DC Motor Driver
 - DC motors 
@@ -27,7 +27,7 @@ The system architecture presented as follow:
 # Usage
 The code is spread over 3 Packages: 
 - [Pal_Controller](https://github.com/ShopiPal/Pal_Controller/) - the main package of the project, containing the arduino code and the python scripts (rospy nodes) implementing the sensors reading, control loop, subscribing and publishing for the relevant topics.
-- [Pal_Navigation](https://github.com/ShopiPal/Pal_Navigation/) - contains the launch and parameters files of existed open-source navigation packages (movebase, amcl, gmapping), subscribing to the relevant topics from wich published on pal_controller
+- [Pal_Navigation](https://github.com/ShopiPal/Pal_Navigation/) - contains the launch and parameters files of existed open-source navigation packages (movebase, amcl, gmapping), subscribing to the relevant topics wich published on pal_controller
 - [Pal_Description](https://github.com/ShopiPal/Pal_Description/) - contains the meshes and URDF file wich exported from SolidWorks.
 
 Assuming: 
@@ -37,7 +37,7 @@ Assuming:
 - you have already installed ROS melodic. see : [melodic installation](http://wiki.ros.org/melodic/Installation/Ubuntu)
 - configured your ROS network on the Robot and on the remote machine. see: [ROS network setup](http://wiki.ros.org/ROS/NetworkSetup)
 
-connect to the robot through ssh and create catkin workspace, clone Pal packages and dependencies (only rplidar until this day) and compile everything: 
+Connect to the robot through ssh and create catkin workspace, clone Pal packages and dependencies (only rplidar until this day) and compile everything: 
 ```bash
 mkdir -p ~/catkin_ws/src
 git clone git@github.com:ShopiPal/Pal_Controller.git
