@@ -26,9 +26,9 @@ The system architecture presented as follow:
 
 # Usage
 The code is spread over 3 Packages: 
-- Pal_Controller - the main package of the project, containing the arduino code and the python scripts (rospy nodes) implementing the sensors reading, control loop, subscribing and publishing for the relevant topics.
-- Pal_Navigation - contains the launch and parameters files of existed open-source navigation packages (movebase, amcl, gmapping), subscribing to the relevant topics from wich published on pal_controller
-- Pal_Description - contains the meshes and URDF file wich exported from SolidWorks.
+- [Pal_Controller](https://github.com/ShopiPal/Pal_Controller/) - the main package of the project, containing the arduino code and the python scripts (rospy nodes) implementing the sensors reading, control loop, subscribing and publishing for the relevant topics.
+- [Pal_Navigation](https://github.com/ShopiPal/Pal_Navigation/) - contains the launch and parameters files of existed open-source navigation packages (movebase, amcl, gmapping), subscribing to the relevant topics from wich published on pal_controller
+- [Pal_Description](https://github.com/ShopiPal/Pal_Description/) - contains the meshes and URDF file wich exported from SolidWorks.
 
 Assuming: 
 - you have the mechanical and HW parts already built and connected properly  
