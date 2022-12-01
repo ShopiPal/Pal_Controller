@@ -95,3 +95,5 @@ Services:
 - ``` /motors/set_pwm ```
 - ``` /motors/stop ```
 
+Topics tree:
+![](https://github.com/ShopiPal/Pal_Controller/blob/main/media/rqt_topic_plot.png)
