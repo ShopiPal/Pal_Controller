@@ -69,7 +69,7 @@ roslaunch pal_navigation_pkg pal_navigation_planner
 ```
 
 Use RVIZ to display:
-![](https://github.com/ShopiPal/Pal_Controller/blob/main/media/pal_navigat_gif)
+![](https://github.com/ShopiPal/Pal_Controller/blob/main/media/pal_navigat_gif.gif)
 
 ### Pal Controller Package 
 Nodes: 
