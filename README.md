@@ -88,8 +88,7 @@ Published topics:
 - ``` /odom  ```
 - ``` /left_motor_pwm ```
 - ``` /right_motor_pwm ```
-- ``` /velocity/vr_target ```
-- ``` /velocity/vl_target ```
+
 
 Services:
 - ``` /motors/set_pwm ```
