@@ -10,6 +10,20 @@ Main areas of the project were:
 - Wrapping scripts into ROS packages and configure it properly.   
 
 # Hardware
+The main HW components which the robot contains are:
+- Nvidia Jetson Nano - function as Pal 'brain' for high-level tasks and running the robot operating system.
+- Arduino Mega micro-controller -  responsible for low-level tasks such as reading the inputs from the robot sensors and send the outputs for the motors according to the logic and algorithms wich occur on the Jetson.  
+- DC Motor Driver
+- DC motors 
+- Ultra-Sonic range sensors
+- Motor encoders
+- Lidar (Rplidar)
+- Wifi module for remote controling (ssh)
+
+The system architecture presented as follow:
+![]()
+
+
 
 # Usage
 
